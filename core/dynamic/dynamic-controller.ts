@@ -39,7 +39,7 @@ export class DynamicController {
                     return;
                 }
 
-                var promise = this.repository.findAll();
+                var promise = this.repository.findAll(req.query.fields);
                 return promise
                     .then((result) => {
                         var resourceName = this.getFullBaseUrl(req);// + this.repository.modelName();
@@ -62,7 +62,7 @@ export class DynamicController {
                     return;
                 }
 
-                return this.repository.findOne(req.params.id)
+                return this.repository.findOne(req.params.id, req.query.fields)
                     .then((result) => {
                         var resourceName = this.getFullBaseUrl(req);// + this.repository.modelName();
                         this.getHalModel1(result, resourceName, req, this.repository);
@@ -81,7 +81,7 @@ export class DynamicController {
                     return;
                 }
 
-                return this.repository.findOne(req.params.id)
+                return this.repository.findOne(req.params.id, req.query.fields)
                     .then((result) => {
 
                         var parent = (<any>result);
@@ -707,7 +707,7 @@ export class DynamicController {
 
     private getFullBaseUrl(req): string {
         var fullbaseUr: string = "";
-        fullbaseUr = req.protocol + '://' + req.get('host') + req.originalUrl;
+        fullbaseUr = req.protocol + '://' + req.get('host') + req.originalUrl.split("?")[0];
         return fullbaseUr;
     }
 

@@ -73,16 +73,16 @@ export class DynamicRepository implements IDynamicRepository {
     /**
      * Returns all the items in a collection
      */
-    public findAll(): Q.Promise<any> {
-        return Utils.entityService().findAll(this.path);
+    public findAll(fields?: Object): Q.Promise<any> {
+        return Utils.entityService().findAll(this.path, fields);
     }
 
     public findWhere(query): Q.Promise<any> {
         return Utils.entityService().findWhere(this.path, query);
     }
 
-    public findOne(id) {
-        return Utils.entityService().findOne(this.path, id);
+    public findOne(id, fields) {
+        return Utils.entityService().findOne(this.path, id, fields);
     }
 
     public findByField(fieldName, value): Q.Promise<any> {

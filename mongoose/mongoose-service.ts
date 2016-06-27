@@ -17,16 +17,16 @@ export class MongooseService implements IEntityService {
         return MongooseModel.bulkPut(this.getMongooseModel(repoPath), objArr);
     }
 
-    findAll(repoPath: string): Q.Promise<any> {
-        return MongooseModel.findAll(this.getMongooseModel(repoPath));
+    findAll(repoPath: string, fields?: Object): Q.Promise<any> {
+        return MongooseModel.findAll(this.getMongooseModel(repoPath),fields);
     }
 
     findWhere(repoPath: string, query): Q.Promise<any> {
         return MongooseModel.findWhere(this.getMongooseModel(repoPath), query);
     }
 
-    findOne(repoPath: string, id): Q.Promise<any> {
-        return MongooseModel.findOne(this.getMongooseModel(repoPath), id);
+    findOne(repoPath: string, id,field): Q.Promise<any> {
+        return MongooseModel.findOne(this.getMongooseModel(repoPath), id, field);
     }
 
     findByField(repoPath: string, fieldName, value): Q.Promise<any> {

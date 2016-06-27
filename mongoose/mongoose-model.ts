@@ -62,8 +62,8 @@ export function bulkPut(model: Mongoose.Model<any>, objArr: Array<any>): Q.Promi
         .catch(error => error);
 }
 
-export function findAll(model: Mongoose.Model<any>): Q.Promise<any> {
-    return Q.nbind(model.find, model)({})
+export function findAll(model: Mongoose.Model<any>, fields?: Object): Q.Promise<any> {
+    return Q.nbind(model.find, model)({}, fields)
         .then(result => {
             return toObject(result);
         })
@@ -76,8 +76,8 @@ export function findWhere(model: Mongoose.Model<any>, query): Q.Promise<any> {
         });
 }
 
-export function findOne(model: Mongoose.Model<any>, id) {
-    return Q.nbind(model.findOne, model)({ '_id': id })
+export function findOne(model: Mongoose.Model<any>, id, fields) {
+    return Q.nbind(model.findOne, model)({ '_id': id }, fields)
         .then(result => {
             return embeddedChildren(model, result)
                 .then(r => {

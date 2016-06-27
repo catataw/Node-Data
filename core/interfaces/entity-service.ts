@@ -1,9 +1,9 @@
 ﻿import Q = require('q');
 
 export interface IEntityService {
-    findAll(model: any): Q.Promise<any>;
+    findAll(model: any, fields?: Object): Q.Promise<any>;
     findWhere(model: any, query): Q.Promise<any>;
-    findOne(model: any, id);
+    findOne(model: any, id, fields);
     findByField(model: any, fieldName, value): Q.Promise<any>;
     findMany(model: any, ids: Array<any>);
     findChild(model: any, id, prop);
@@ -13,4 +13,4 @@ export interface IEntityService {
     put(model: any, id: any, obj: any): Q.Promise<any>;
     del(model: any, id: any): Q.Promise<any>;
     patch(model: any, id: any, obj): Q.Promise<any>;
-}
+}   

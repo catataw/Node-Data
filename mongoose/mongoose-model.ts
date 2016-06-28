@@ -76,7 +76,7 @@ export function findWhere(model: Mongoose.Model<any>, query): Q.Promise<any> {
         });
 }
 
-export function findOne(model: Mongoose.Model<any>, id, fields) {
+export function findOne(model: Mongoose.Model<any>, id, fields?: Object) {
     return Q.nbind(model.findOne, model)({ '_id': id }, fields)
         .then(result => {
             return embeddedChildren(model, result)

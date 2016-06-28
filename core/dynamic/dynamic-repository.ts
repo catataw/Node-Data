@@ -81,7 +81,7 @@ export class DynamicRepository implements IDynamicRepository {
         return Utils.entityService().findWhere(this.path, query);
     }
 
-    public findOne(id, fields) {
+    public findOne(id, fields?: Object) {
         return Utils.entityService().findOne(this.path, id, fields);
     }
 

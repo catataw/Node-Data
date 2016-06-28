@@ -3,7 +3,7 @@
 export interface IEntityService {
     findAll(model: any, fields?: Object): Q.Promise<any>;
     findWhere(model: any, query): Q.Promise<any>;
-    findOne(model: any, id, fields);
+    findOne(model: any, id, fields?: Object);
     findByField(model: any, fieldName, value): Q.Promise<any>;
     findMany(model: any, ids: Array<any>);
     findChild(model: any, id, prop);

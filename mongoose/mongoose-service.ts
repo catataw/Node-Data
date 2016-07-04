@@ -2,7 +2,7 @@
 import {IEntityService} from '../core/interfaces/entity-service';
 import {MetaUtils} from "../core/metadata/utils";
 import * as MongooseModel from './mongoose-model';
-import {pathRepoMap} from './';
+import {pathRepoMap, getModel} from '../core/dynamic/model-entity';
 
 export class MongooseService implements IEntityService {
 
@@ -11,6 +11,11 @@ export class MongooseService implements IEntityService {
 
     bulkPost(repoPath: string, objArr: Array<any>): Q.Promise<any> {
         return MongooseModel.bulkPost(this.getMongooseModel(repoPath), objArr);
+    }
+
+
+    bulkDel(repoPath: string, objArr: Array<any>): Q.Promise<any> {
+        return MongooseModel.bulkDel(this.getMongooseModel(repoPath), objArr);
     }
 
     bulkPut(repoPath: string, objArr: Array<any>): Q.Promise<any> {
@@ -64,7 +69,7 @@ export class MongooseService implements IEntityService {
 
     private getMongooseModel(repoPath: string) {
         try {
-            return pathRepoMap[repoPath].mongooseModel;
+            return getModel(pathRepoMap[repoPath].schemaName);
         } catch (e) {
             throw e;
         }

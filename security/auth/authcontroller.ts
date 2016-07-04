@@ -40,22 +40,22 @@ export class AuthController {
         this.authService.authenticate();
     }
 
-    private getFullBaseUrl(req): string{
-        var fullbaseUr:string="";
-         fullbaseUr=req.protocol + '://' + req.get('host') + req.originalUrl;
+    private getFullBaseUrl(req): string {
+        var fullbaseUr: string = "";
+        fullbaseUr = this.getProtocol(req) + '://' + req.get('host') + req.originalUrl;
         return fullbaseUr;
     }
 
-   private addRoutes() {
+    private addRoutes() {
         router.get('/',
             securityUtils.ensureLoggedIn(),
             (req, res) => {
                 var aa = this.authService;
-            // Display the Login page with any flash message, if any
-                res.render('home', {user: req.user});
+                // Display the Login page with any flash message, if any
+                res.render('home', { user: req.user });
             });
 
-        router.get('/'+configUtil.config().Config.basePath,
+        router.get('/' + configUtil.config().Config.basePath,
             securityUtils.ensureLoggedIn(),
             (req, res) => {
                 //fetch all resources name (not the model name) in an array
@@ -91,7 +91,7 @@ export class AuthController {
                     }), (req, res, next) => this.serialize(req, res, next),
                 (req, res, next) => this.generateToken(req, res, next),
                 (req, res, next) => this.generateRefreshToken(req, res, next),
-                (req, res) => this.respond(req, res));
+                (req, res) => this.authRespond(req, res));
         }
 
         if (configUtil.config().Security.authenticationType === configUtil.securityConfig().AuthenticationType[configUtil.securityConfig().AuthenticationType.TokenBased]) {
@@ -108,42 +108,46 @@ export class AuthController {
         router.get('/token', (req, res, next) => this.validateRefreshToken(req, res, next),
             (req, res, next) => this.serialize(req, res, next),
             (req, res, next) => this.generateToken(req, res, next),
-            (req, res) => this.respond(req, res));
+            (req, res) => this.authRespond(req, res));
 
         if (configUtil.config().Security.authenticationType === configUtil.securityConfig().AuthenticationType[configUtil.securityConfig().AuthenticationType.passwordBased]) {
             router.post('/login',
-            passport.authenticate("local"), (req, res) => {
-                res.redirect('/' + Utils.config().Config.basePath);
-            });
+                passport.authenticate("local"), (req, res) => {
+                    res.redirect('/' + Utils.config().Config.basePath);
+                });
         }
         router.get('/logout', (req, res) => {
             req.logout();
             res.redirect('/');
         });
+
+        router.post('/register', (req, res) => {
+            this.userDetailService.getNewUser(req, res);
+        });
     }
 
     serialize(req, res, next) {
-    this.db.updateOrCreate(req.user, function (err, user) {
-        if (err) { return next(err); }
-        // we store the updated information in req.user again
-        req.user = {
-            id: user._id
-        };
-        next();
-    });
-}
+        this.db.updateOrCreate(req.user, function (err, user) {
+            if (err) { return next(err); }
+            // we store the updated information in req.user again
+            req.user = {
+                id: user._id
+            };
+            next();
+        });
+    }
 
     db = {
-    updateOrCreate: function (user, cb) {
-        // we just cb the user
-        cb(null, user);
-    }
-};
+        updateOrCreate: function (user, cb) {
+            // we just cb the user
+            cb(null, user);
+        }
+    };
 
     private generateToken(req, res, next) {
         req.token = jwt.sign(
-           req.user
-        , configUtil.securityConfig().SecurityConfig.tokenSecretkey, {
+            req.user
+            , configUtil.securityConfig().SecurityConfig.tokenSecretkey, {
                 expiresInMinutes: configUtil.securityConfig().SecurityConfig.tokenExpiresInMinutes
             });
         //TODO dont put it in user object in db
@@ -165,16 +169,16 @@ export class AuthController {
 
     private authRespond(req, res) {
         var responseJson = {};
-        responseJson['token'] = req.token;
-        responseJson['refreshToken'] = req.user.refreshToken;
+        delete req.user.password;
+        responseJson['user'] = req.user;
         res.send(responseJson);
-   }
+    }
 
-   private generateRefreshToken(req, res, next) {
+    private generateRefreshToken(req, res, next) {
         req.user.refreshToken = req.user.id.toString() + '.' + crypto.randomBytes(40).toString('hex');
         //TODO dont put it in user object in db
         res.cookie('refreshToken', req.user.refreshToken, { maxAge: 900000, httpOnly: true });
-        this.userDetailService.updateExistingUser(req.user.id,req.user).then(
+        this.userDetailService.updateExistingUser(req.user.id, req.user).then(
             (user) => {
                 req.user = user.getUserObject();
                 next();
@@ -184,8 +188,8 @@ export class AuthController {
             });
     }
 
-   private validateRefreshToken(req, res, next) {
-       this.userDetailService.loadUserByField("refreshToken", req.cookies.refreshToken).then(
+    private validateRefreshToken(req, res, next) {
+        this.userDetailService.loadUserByField("refreshToken", req.cookies.refreshToken).then(
             (user) => {
                 req.user = user.getUserObject();
                 next();
@@ -193,5 +197,14 @@ export class AuthController {
             (error) => {
                 return error;
             });
-}
+    }
+
+    private getProtocol(req) : string{
+        if(req.headers && req.headers["x-arr-ssl"]){
+            return "https";
+        }
+        else{
+            return req.protocol;
+        }
+    }
 }

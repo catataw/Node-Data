@@ -2,6 +2,13 @@
 
 ##What is Node-Data
 
+Node-Data is unique backend framework which provides a generic interface for sql , NoSQL and graph entities and creates generic rest level 3 endpoints along with data repositories . 
+
+A node-data user just define a model, provide an specification (sql ,nosql or graph) and node-data provides a API to write generic transaction and queries from  persistent layer .
+
+Node-data automatically create rest end points over models and service written by user.
+Node-data allows the relationships (one to one , manyto one etc ) with any kind of model , so essentially it allows a sql entity to have a no-sql document and vice versa . The consistency managed by framework and developers can treat all model as one type.
+
 Node-Data is a Node.js framework to expose rest data on level 3 (metadata and auto discovery).
 
 This framework will allow declarative style (annotations) to handle most of backend concerns (data relations, transactions, rest, graphql , security) .Yes its on javascript .
@@ -63,6 +70,70 @@ Npm-acl | 0.4.9 | Popular acl library
 Elastic search | 10.1.3 | Search and aggregation
 Mongosastic | 4.0.2 | Library for integrating Mongoose with ElasticSearch
 redis | unknown | Rest middleware
+
+##How To Use without security
+
+1. Git clone https://github.com/hariadk/demo-sample.git
+2. cd demo-sample/Demo-Sample
+3. npm install
+4. tsd install
+5. Mongodb running on 27017(default port).
+6. Goto config.ts and make isAutheticationEnabled = 'disabled'
+7. open cmd, run 'gulp compile-ts' then run gulp.
+8. Post a JSON {"name":"john","":"john"} to http://localhost:9999/data/users.
+8. Hit the api to get data(http://localhost:9999/data/users)
+9. Ensure node version is 5.7.0
+
+##How To Use with security
+
+Follow the below steps to start using the framework.
+
+1. Git clone https://github.com/hariadk/demo-sample.git
+
+2. cd demo-sample/Demo-Sample
+
+##Create a new user
+1. POST {
+"user":{"name":"a111","password":"a"}
+}
+in http://localhost:9999/register.
+This will create a new user in db.
+
+2. Now we can use this user information to login, for both session based and token based authentication
+
+3. If we need to change the logic for user creation, change the method getNewUser in current-user-detail-service.ts file.Sample code is in place.
+
+For using session based authentication use below steps:
+
+1. Do above steps 1 & 2
+
+2. Checkout branch PasswordAuth
+
+3. npm install
+
+4. tsd install
+
+5. Mongodb running on 27017(default port).
+
+6. Post a JSON {"name":"john","":"john"} to http://localhost:9999/data/users. This will create a test user in db.
+
+7. open cmd, run 'gulp compile-ts' then run gulp.
+
+8. Hit http://localhost:9999 which will take you to login page.
+
+9. use john as username and password, and a session will be created.
+
+For using Token based auth use below steps
+
+1. All the steps done above except checkout branch TokenAuth.
+
+2. Once logged in , a token will be created.
+
+3. To change the token expiring time, change the file security-config.ts.
+ public static tokenExpiresInMinutes: number = 2;//2 minutes
+ 
+4. The number indicates minutes of token expiry not hours.
+
 
 ##Rest level 3 APIs
 

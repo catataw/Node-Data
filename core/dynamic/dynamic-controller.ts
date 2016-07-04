@@ -81,67 +81,13 @@ export class DynamicController {
                     return;
                 }
 
-                return this.repository.findOne(req.params.id, req.query.fields)
+                return this.repository.findChild(req.params.id, req.params.prop)
                     .then((result) => {
-
-                        var parent = (<any>result);
-                        var association = parent[req.params.prop];
-                        var metaDatas = Utils.getAllRelationsForTargetInternal(this.repository.getModelRepo());
-                        var metaData = Enumerable.from(metaDatas).firstOrDefault(x => x.propertyKey == req.params.prop);
-
-                        if (metaData != null &&
-                            association !== undefined && association !== null) {
-
-                            var meta = metaData; // by deafult take first relation
-                            var params = <IAssociationParams>meta.params;
-                            var repo = GetRepositoryForName(params.rel);
-                            if (repo == null) return;
-
-                            var resourceName = this.getFullBaseUrlUsingRepo(req, repo.modelName());
-
-                            if (params.embedded) {
-                                if (meta.propertyType.isArray) {
-                                    Enumerable.from(association).forEach(x => {
-                                        this.getHalModel1(x, resourceName + '/' + x['_id'], req, repo);
-                                    });
-                                    association = this.getHalModels(association, resourceName);
-                                }
-                                else {
-                                    this.getHalModel1(association, resourceName + '/' + association['_id'], req, repo);
-                                }
-                                this.sendresult(req, res, association);
-                            }
-                            else {
-                                var ids = association;
-                                if (!meta.propertyType.isArray) {
-                                    ids = [association];
-                                }
-
-                                var asyncCalls = [];
-                                Enumerable.from(ids).forEach(x => asyncCalls.push(repo.findOne(x)));
-
-                                Q.allSettled(asyncCalls).then(result => {
-                                    result = Enumerable.from(result).select(x => x.value).toArray();
-                                    if (result.length > 0) {
-                                        if (meta.propertyType.isArray) {
-                                            Enumerable.from(result).forEach(x => {
-                                                this.getHalModel1(x, resourceName + '/' + x['_id'], req, repo);
-                                            });
-
-                                            result = this.getHalModels(result, resourceName);
-                                        }
-                                        else {
-                                            result = result[0];
-                                            this.getHalModel1(result, resourceName + '/' + result['_id'], req, repo);
-                                        }
-                                        this.sendresult(req, res, result);
-                                    }
-                                });
-                            }
-                        }
-                        else {
-                            this.sendresult(req, res, association);
-                        }
+                        var parentObj = {};
+                        parentObj[req.params.prop] = result;
+                        var resourceName = this.getFullBaseUrl(req);
+                        this.getHalModel1(parentObj, resourceName + '/' + req.params.id, req, this.repository);
+                        this.sendresult(req, res, parentObj[req.params.prop]);
                     }).catch(error => {
                         console.log(error);
                         this.sendError(res, error);
@@ -221,6 +167,8 @@ export class DynamicController {
                 this.getModelFromHalModel(req.body, req, res);
                 return this.repository.put(req.params.id, req.body)
                     .then((result) => {
+                        var resourceName = this.getFullBaseUrl(req);// + this.repository.modelName();
+                        this.getHalModel1(result, resourceName, req, this.repository);
                         this.sendresult(req, res, result);
                     }).catch(error => {
                         console.log(error);
@@ -271,6 +219,32 @@ export class DynamicController {
                     });
             });
 
+        // bulk delete
+        router.delete(this.path,
+            securityImpl.ensureLoggedIn(),
+            (req, res) => {
+                if (!securityImpl.isAuthorize(req, this.repository, 'put')) {
+                    this.sendUnauthorizeError(res, 'unauthorize access for resource ' + this.path);
+                    return;
+                }
+
+                if (!Array.isArray(req.body)) {
+                    this.sendError(res, 'Invalid data.');
+                    return;
+                }
+
+                Enumerable.from(req.body).forEach(x => {
+                    this.getModelFromHalModel(x, req, res);
+                });
+                return this.repository.bulkDel(req.body as Array<any>)
+                    .then((result) => {
+                        this.sendresult(req, res, result);
+                    }).catch(error => {
+                        console.log(error);
+                        this.sendError(res, error);
+                    });
+            });
+
         router.patch(this.path + "/:id",
             securityImpl.ensureLoggedIn(),
             (req, res) => {
@@ -281,6 +255,8 @@ export class DynamicController {
                 this.getModelFromHalModel(req.body, req, res);
                 return this.repository.patch(req.params.id, req.body)
                     .then((result) => {
+                        var resourceName = this.getFullBaseUrl(req);// + this.repository.modelName();
+                        this.getHalModel1(result, resourceName, req, this.repository);
                         this.sendresult(req, res, result);
                     }).catch(error => {
                         console.log(error);
@@ -457,11 +433,15 @@ export class DynamicController {
         // Keeping different router.get to avoid unncessary closure at runtime
         if (searchFromDb) {
             router.get(this.path + "/search/" + map.key, securityImpl.ensureLoggedIn(), (req, res) => {
+                var resourceName = this.getFullBaseUrlUsingRepo(req, this.repository.modelName());
                 var queryObj = req.query;
                 console.log("Querying Database");
                 return this.repository
                     .findWhere(queryObj)
-                    .then((result) => {
+                    .then((result : Array<any>) => {
+                        result.forEach(obj => {
+                            this.getHalModel1(obj, resourceName + "/" + obj["_id"], req, this.repository);
+                        });
                         this.sendresult(req, res, result);
                     });
 
@@ -513,8 +493,8 @@ export class DynamicController {
     }
 
     private getModelFromHalModel(model: any, req: any, res: any) {
-        if (model["_lniks"]) {
-            delete model["_lniks"];
+        if (model["_links"]) {
+            delete model["_links"];
         }
         //code to handle jsonignore
         let modelRepo = this.repository.getEntityType();
@@ -582,6 +562,7 @@ export class DynamicController {
             relUrl["href"] = resourceName + "/" + relation.propertyKey;
             model["_links"][relation.propertyKey] = relUrl;
             var repo = GetRepositoryForName(relation.params.rel);
+            if (repo) {
             var param = relation.params;
             if (!param.embedded && !param.eagerLoading) { return model };
             if (model[relation.propertyKey] instanceof Array) {
@@ -596,6 +577,7 @@ export class DynamicController {
                         var url = this.getFullBaseUrlUsingRepo(req, repo.modelName());
                         this.getHalModel1(model[relation.propertyKey], url + '/' + model[relation.propertyKey]['_id'], req, repo);
                 }
+            }
             }
         });
         return model;
@@ -701,19 +683,29 @@ export class DynamicController {
 
     private getFullDataUrl(req): string {
         var fullbaseUr: string = "";
-        fullbaseUr = req.protocol + '://' + req.get('host') + "/" + configUtil.config().Config.basePath;
+        fullbaseUr = this.getProtocol(req) + '://' + req.get('host') + "/" + configUtil.config().Config.basePath;
         return fullbaseUr;
     }
 
     private getFullBaseUrl(req): string {
         var fullbaseUr: string = "";
-        fullbaseUr = req.protocol + '://' + req.get('host') + req.originalUrl.split("?")[0];
+        fullbaseUr = this.getProtocol(req) + '://' + req.get('host') + req.originalUrl;
         return fullbaseUr;
     }
 
     private getFullBaseUrlUsingRepo(req, repoName): string {
         var fullbaseUr: string = "";
-        fullbaseUr = req.protocol + '://' + req.get('host') + '/' + configUtil.config().Config.basePath + '/' + repoName;
+        fullbaseUr = this.getProtocol(req) + '://' + req.get('host') + '/' + configUtil.config().Config.basePath + '/' + repoName;
         return fullbaseUr;
     }
+
+    private getProtocol(req) : string{
+        if(req.headers && req.headers["x-arr-ssl"]){
+            return "https";
+}
+        else{
+            return req.protocol;
+        }
+    }
+
 }

@@ -741,7 +741,15 @@ class UserModel {
 } 
 ```
 
+
 The user will have freedom to choose the entity attribute to be validated before save or update.
+
+## Get only selected properties
+Only the properties which are needed can be fetched from mongoDB database by passing the space-separated property names in the query string.
+
+For Example, consider the above UserModel, if only email and mobileNumber is need then it can be fetched by below URL:
+
+http://localhost/data/users?fields=email mobileNumber
 
 [JIRA URL] (https://node-data.atlassian.net/secure/RapidBoard.jspa?rapidView=2&view=detail) 
 

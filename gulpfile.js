@@ -8,7 +8,7 @@ var ignore = require('gulp-ignore');
 var ciDevVersion = require('./scripts/ci-version-devbuild');
 //var nodeDebug = require("gulp-node-debug");
 
-var tsProject = tsc.createProject('tsconfig.json', { sortOutput: true });
+var tsProject = tsc.createProject('tsconfig.json', { sortOutput: true, typescript: require("typescript")});
 
 gulp.task('compile-ts', function () {
     var errors = 0;

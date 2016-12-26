@@ -5,6 +5,7 @@ export class Config {
 
     public static ElasticSearchConnection : string  = "http://localhost:9200";
     public static ApplyElasticSearch : boolean = false;
+    public static ignorePaths = ["**/server.js", "**/webpack.config.js"]
 }
 
 export class SqlConfig {

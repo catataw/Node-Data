@@ -2,7 +2,7 @@
   "name": "nodedata",
   "version": "1.0.0-dev.161215110613",
   "description": "Node Data",
-  "main": "server.js",
+  "main": "bundle.js",
   "scripts": {
     "cover": "node_modules/.bin/istanbul cover node_modules/jasmine/bin/jasmine.js -x *.spec.js",
     "ci": "gulp ts && gulp ci-dev && npm test && npm publish",
@@ -25,10 +25,13 @@
     "express": "4.13.3",
     "express-jwt": "3.3.0",
     "express-session": "1.13.0",
-    "gulp": "3.9.0",
+    "graceful-fs": "4.1.11",
+    "gulp": "^3.9.1",
     "jsonwebtoken": "5.7.0",
     "linq": "3.0.5",
-    "mongodb": "2.1.3",
+    "lodash": "4.17.3",
+    "minimatch": "3.0.3",
+    "mongodb": "2.2.16",
     "mongoosastic": "4.0.2",
     "mongoose": "4.0.6",
     "morgan": "1.6.1",
@@ -39,11 +42,12 @@
     "passport-jwt": "2.0.0",
     "passport-local": "1.0.0",
     "q": "1.4.1",
-    "recursive-readdir-synchronous": "0.0.2",
+    "recursive-readdir-synchronous": "git://github.com/bmhaskar/recursive-readdir.git#d6a485636cf96c7ec57ce4771fa3118e402ef359",
     "reflect-metadata": "0.1.3",
     "request": "2.69.0",
     "sequelize": "3.23.2",
     "tedious": "1.14.0",
+    "tough-cookie": "2.3.2",
     "tslint": "3.6.0",
     "winston": "2.2.0"
   },
@@ -59,6 +63,9 @@
     "jasmine": "2.4.1",
     "jasmine-node": "1.14.5",
     "supertest": "1.2.0",
-    "tslint-microsoft-contrib": "2.0.2"
+    "tslint-microsoft-contrib": "2.0.2",
+    "typescript": "^2.1.4",
+    "typings": "^2.1.0",
+    "webpack": "^1.14.0"
   }
 }

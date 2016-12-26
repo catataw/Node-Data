@@ -1,5 +1,6 @@
 {
   "globalDependencies": {
+    "es6-shim": "registry:dt/es6-shim#0.31.2+20160726072212",
     "jasmine": "registry:dt/jasmine#2.5.0+20161025102649",
     "mongodb": "registry:dt/mongodb#2.1.0+20161110150902",
     "mongoose": "registry:dt/mongoose#4.5.9+20161010180758",

@@ -4,13 +4,13 @@
   "description": "Node Data",
   "main": "bundle.js",
   "scripts": {
+    "clean": "gulp clean",
     "cover": "node_modules/.bin/istanbul cover node_modules/jasmine/bin/jasmine.js -x *.spec.js",
     "ci": "gulp ts && gulp ci-dev && npm test && npm publish",
     "pub": "gulp ts && npm publish",
     "start": "node server.js",
     "test": "jasmine",
-    "testone": "jasmine ",
-    "tsd": ""
+    "testone": "jasmine "
   },
   "author": "pratikv",
   "license": "MIT",
@@ -26,7 +26,6 @@
     "express-jwt": "3.3.0",
     "express-session": "1.13.0",
     "graceful-fs": "4.1.11",
-    "gulp": "^3.9.1",
     "jsonwebtoken": "5.7.0",
     "linq": "3.0.5",
     "lodash": "4.17.3",
@@ -52,6 +51,10 @@
     "winston": "2.2.0"
   },
   "devDependencies": {
+    "del": "2.2.2",
+    "dotbin": "1.0.1",
+    "gulp": "3.9.0",
+    "gulp-help": "^1.6.1",
     "gulp-ignore": "2.0.1",
     "gulp-livereload": "3.8.1",
     "gulp-nodemon": "2.0.6",
@@ -63,9 +66,9 @@
     "jasmine": "2.4.1",
     "jasmine-node": "1.14.5",
     "supertest": "1.2.0",
+    "tslint": "^3.6.0",
     "tslint-microsoft-contrib": "2.0.2",
-    "typescript": "^2.1.4",
-    "typings": "^2.1.0",
-    "webpack": "^1.14.0"
+    "typescript": "2.1.4",
+    "typings": "2.1.0"
   }
 }

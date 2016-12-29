@@ -1,7 +1,6 @@
-﻿
-export class MockAuthService {
+﻿export class MockAuthService {
 
-    authenticate() {
-        console.log('mock service message');
-    }
+  authenticate() {
+    console.log('mock service message');
+  }
 }

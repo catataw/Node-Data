@@ -12,3 +12,4 @@ out/**
 coverage/**
 npm-debug.log
 nodedataLog.log
+lib/**

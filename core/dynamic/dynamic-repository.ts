@@ -38,6 +38,8 @@ export interface IDynamicRepository {
     findAll(): Q.Promise<any>;
     //findWhere(query, selectedFields?: Array<any>): Q.Promise<any>;
     findWhere(query, selectedFields?: Array<any>, queryOptions?: QueryOptions): Q.Promise<any>;
+    countWhere(query);
+    distinctWhere(query);
     findByField(fieldName, value): Q.Promise<any>;
     findChild(id, prop): Q.Promise<any>;
 
@@ -79,12 +81,21 @@ export class DynamicRepository implements IDynamicRepository {
         return this.rootLevelRep;
     }
 
-    public bulkPost(objArr: Array<any>) {
+   public bulkPost(objArr: Array<any>) {
         var objs = [];
         objArr.forEach(x => {
             objs.push(InstanceService.getInstance(this.getEntity(), null, x));
         });
-        return Utils.entityService(pathRepoMap[this.path].modelType).bulkPost(this.path, objs);
+        return Utils.entityService(pathRepoMap[this.path].modelType).bulkPost(this.path, objs).then(result => {
+            if (result && result.length > 0) {
+                var res = [];
+                result.forEach(x => {
+                    res.push(InstanceService.getObjectFromJson(this.getEntity(), x));
+                });
+                return res;
+            }
+            return result;
+        });
     }
 
     public bulkPut(objArr: Array<any>) {
@@ -162,6 +173,17 @@ export class DynamicRepository implements IDynamicRepository {
         });
     }
 
+    public countWhere(query) {
+        return Utils.entityService(pathRepoMap[this.path].modelType).countWhere(this.path, query).then(result => {
+            return result;
+        });
+    }
+
+    public distinctWhere(query) {
+        return Utils.entityService(pathRepoMap[this.path].modelType).distinctWhere(this.path, query).then(result => {
+            return result;
+        });
+    }
 
 
     public findOne(id) {

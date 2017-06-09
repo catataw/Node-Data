@@ -39,11 +39,7 @@ export class AuthService {
                         if (!user) {
                             return done(null, false, { message: 'Incorrect username.' });
                         }
-                        try {
-                            if (!bcryptNodejs.compareSync(password, user.getPassword())) {
-                                return done(null, false, { message: 'Incorrect password.' });
-                            }
-                        } catch (error){
+                        if (!bcryptNodejs.compareSync(password, user.getPassword())) {
                             return done(null, false, { message: 'Incorrect password.' });
                         }
 

@@ -97,6 +97,10 @@ class SequelizeService implements IEntityService {
         return this.getModel(repoPath).bulkUpdate(objArr);
     }
 
+    bulkPatch(repoPath: string, objArr: Array<any>): Q.Promise<any> {
+        return this.getModel(repoPath).bulkUpdate(objArr);
+    }
+
     findAll(repoPath: string): Q.Promise<any> {
         return this.getModel(repoPath).findAll().then(result => {
             if (!result) return null;
@@ -108,6 +112,27 @@ class SequelizeService implements IEntityService {
     findWhere(repoPath: string, query, selectedFields?: Array<string>, queryOptions?: QueryOptions, toLoadChilds?: boolean): Q.Promise<any> {
         return this.getModel(repoPath).findAll(query).then(result => {
             return result.dataValues;
+        });
+    }
+
+    //This is not testest yet
+    //TODO: add test case for this
+    countWhere(repoPath: string, query): Q.Promise<any> {
+        return this.getModel(repoPath).findAndCountAll(query).then(result => {
+            return result;
+        });
+    }
+    
+
+    //This is not testest yet
+    //TODO: add test case for this
+    distinctWhere(repoPath: string, query): Q.Promise<any> {
+        if (!query) {
+            query = {};
+        }
+        query.distinct = true;
+        return this.getModel(repoPath).findAndCountAll(query).then(result => {
+            return result;
         });
     }
 

@@ -25,6 +25,10 @@ export class MongooseService implements IEntityService {
         return MongooseModel.bulkPut(this.getModel(repoPath), objArr);
     }
 
+    bulkPatch(repoPath: string, objArr: Array<any>): Q.Promise<any> {
+        return MongooseModel.bulkPatch(this.getModel(repoPath), objArr);
+    }
+
     bulkPutMany(repoPath: string, objIds: Array<any>, obj: any): Q.Promise<any> {
         return MongooseModel.bulkPutMany(this.getModel(repoPath), objIds, obj);
     }
@@ -35,6 +39,14 @@ export class MongooseService implements IEntityService {
 
     findWhere(repoPath: string, query, selectedFields?: Array<string> | any, queryOptions?: QueryOptions, toLoadChilds?: boolean): Q.Promise<any> {
         return MongooseModel.findWhere(this.getModel(repoPath), query, selectedFields, queryOptions, toLoadChilds);
+    }
+
+    countWhere(repoPath: string, query): Q.Promise<any> {
+        return MongooseModel.countWhere(this.getModel(repoPath), query);
+    }
+
+    distinctWhere(repoPath: string, query): Q.Promise<any> {
+        return MongooseModel.countWhere(this.getModel(repoPath), query);
     }
 
     findOne(repoPath: string, id): Q.Promise<any> {
@@ -71,7 +83,7 @@ export class MongooseService implements IEntityService {
     }
 
     patch(repoPath: string, id: any, obj): Q.Promise<any> {
-        return MongooseModel.patch(this.getModel(repoPath), id, obj);
+        return MongooseModel.patch(this.getModel(repoPath), id, obj,repoPath);
     }
 
     getModel(repoPath: string) {

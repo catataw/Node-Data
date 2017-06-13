@@ -5,6 +5,8 @@ import {PrincipalContext} from '../../security/auth/principalContext';
 import * as Enumerable from 'linq';
 import {getDbSpecifcModel} from '../db';
 import {pathRepoMap, getModel, getSchema} from '../../core/dynamic/model-entity';
+import {MetaData} from '../../core/metadata/metadata';
+import {Decorators} from '../../core/constants/decorators';
 
 export function castToMongooseType(value, schemaType) {
     var newVal;
@@ -120,4 +122,25 @@ export function isPropertyUpdateRequired(changedProps: Array<string>, properties
 export function getCurrentDBModel(schemaName) {
     var model = getModel(schemaName);
     return getDbSpecifcModel(schemaName, model.schema);
+}
+
+export function getMongoUpdatOperatorForRelation(meta: MetaData) {
+    var operator = "";
+    switch (meta.decorator) {
+        case Decorators.ONETOMANY: // for array of objects
+            operator = '.$';
+            break;
+        case Decorators.MANYTOMANY: // for array of objects
+            operator = '.$';
+            break;
+        case Decorators.MANYTOONE: // for single object
+            operator = "";
+            break;
+        case Decorators.ONETOONE: // for single object
+            operator = "";
+            break;
+    }
+
+    return operator;
+
 }

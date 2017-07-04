@@ -77,12 +77,13 @@ export function entityAction(params: IPreauthorizeParams): any {
                             fullyQualifiedEntities = Enumerable.from(fullyQualifiedEntities).where((x: EntityActionParam) => ids.indexOf(x.newPersistentEntity._id.toString()) != -1).toArray();
                         }
 
-                        if (args.length) {
-                            args[args.length - 1] = fullyQualifiedEntities;
-                        }
-                        else {
-                            args[0] = fullyQualifiedEntities;
-                        }
+                        //if (args.length) {
+                        //    args[args.length - 1] = fullyQualifiedEntities;
+                        //}
+                        //else {
+                        //    args[0] = fullyQualifiedEntities;
+                        //}
+                        args[args.length] = fullyQualifiedEntities;
                         return originalMethod.apply(this, args);
                     });
                 }

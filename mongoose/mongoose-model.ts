@@ -11,6 +11,8 @@ import {QueryOptions} from '../core/interfaces/queryOptions';
 import {MetaUtils} from "../core/metadata/utils";
 import {Decorators} from '../core/constants/decorators';
 import {GetRepositoryForName} from '../core/dynamic/dynamic-repository';
+import {InstanceService} from '../core/services/instance-service';
+import {getDbSpecifcModel} from './db';
 
 /**
  * Iterate through objArr and check if any child object need to be added. If yes, then add those child objects.
@@ -20,6 +22,14 @@ import {GetRepositoryForName} from '../core/dynamic/dynamic-repository';
  * @param objArr
  */
 export function bulkPost(model: Mongoose.Model<any>, objArr: Array<any>): Q.Promise<any> {
+
+    if (!objArr) {
+        return Q.when([]);
+    }
+    if (objArr && objArr.length <= 0) {
+        return Q.when([]);
+    }
+
     var addChildModel = [];
 
     // create all cloned models
@@ -33,17 +43,32 @@ export function bulkPost(model: Mongoose.Model<any>, objArr: Array<any>): Q.Prom
     return Q.allSettled(addChildModel)
         .then(result => {
             // autogenerate ids of all the objects
+            let objArrIndex = 0;
             Enumerable.from(clonedModels).forEach(clonedObj => {
                 try {
                     mongooseHelper.autogenerateIdsForAutoFields(model, clonedObj);
                     //Object.assign(obj, clonedObj);
+                    let obj = objArr[objArrIndex];
+                    if (obj.getUniqueId) {
+                        clonedObj._id = obj.getUniqueId();
+                    }
+                    objArrIndex++;
                 } catch (ex) {
                     winstonLog.logError(`Error in bulkPost ${ex}`);
                     return Q.reject(ex);
                 }
+
             });
 
-            return Q.nbind(model.create, model)(clonedModels).then(result => {
+
+
+            let newModel = model;
+            let obj = objArr[0];
+            if (obj.getCollectionName) {
+                newModel = getDbSpecifcModel(obj.getCollectionName(), model.schema);
+            }
+
+            return Q.nbind(newModel.create, newModel)(clonedModels).then(result => {
                 return Enumerable.from(result).select(x => Utils.toObject(x)).toArray();
             })
                 .catch(error => {
@@ -60,9 +85,19 @@ export function bulkPost(model: Mongoose.Model<any>, objArr: Array<any>): Q.Prom
  * @param objArr
  */
 export function bulkPut(model: Mongoose.Model<any>, objArr: Array<any>): Q.Promise<any> {
+
+    if (!objArr) {
+        return Q.when([]);
+    }
+    if (objArr && objArr.length <= 0) {
+        return Q.when([]);
+    }
+
     var asyncCalls = [];
     var length = objArr.length;
     var ids = objArr.map(x => x._id);
+    //it has to be group by
+    model = getChangedModelForDynamicSchema(model, ids[0]);
     var bulk = model.collection.initializeUnorderedBulkOp();
     var asyncCalls = [];
 
@@ -114,9 +149,18 @@ export function bulkPut(model: Mongoose.Model<any>, objArr: Array<any>): Q.Promi
  * @param objArr
  */
 export function bulkPatch(model: Mongoose.Model<any>, objArr: Array<any>): Q.Promise<any> {
+
+    if (!objArr) {
+        return Q.when([]);
+    }
+    if (objArr && objArr.length <= 0) {
+        return Q.when([]);
+    }
+
     var asyncCalls = [];
     var length = objArr.length;
     var ids = objArr.map(x => x._id);
+    model = getChangedModelForDynamicSchema(model, ids[0]);
     var bulk = model.collection.initializeUnorderedBulkOp();
     var asyncCalls = [];
 
@@ -154,7 +198,16 @@ export function bulkPatch(model: Mongoose.Model<any>, objArr: Array<any>): Q.Pro
  * @param obj
  */
 export function bulkPutMany(model: Mongoose.Model<any>, objIds: Array<any>, obj: any): Q.Promise<any> {
+
+    if (!objIds) {
+        return Q.when([]);
+    }
+    if (objIds && objIds.length <= 0) {
+        return Q.when([]);
+    }
+
     delete obj._id;
+    model = getChangedModelForDynamicSchema(model, objIds[0]);
     let clonedObj = mongooseHelper.removeTransientProperties(model, obj);
     // First update the any embedded property and then update the model
     var cond = {};
@@ -197,8 +250,8 @@ export function findAll(model: Mongoose.Model<any>): Q.Promise<any> {
  * @param query 
  */
 export function countWhere(model: Mongoose.Model<any>, query: any): Q.Promise<any> {
-    
-    let queryObj = model.find(query).count();    
+
+    let queryObj = model.find(query).count();
     //winstonLog.logInfo(`findWhere query is ${query}`);
     return Q.nbind(queryObj.exec, queryObj)()
         .then(result => {
@@ -208,7 +261,7 @@ export function countWhere(model: Mongoose.Model<any>, query: any): Q.Promise<an
             winstonLog.logError(`Error in countWhere ${error}`);
             return Q.reject(error);
         });
-    
+
 }
 
 export function distinctWhere(model: Mongoose.Model<any>, query: any): Q.Promise<any> {
@@ -238,6 +291,7 @@ export function distinctWhere(model: Mongoose.Model<any>, query: any): Q.Promise
  * @param limit
  */
 export function findWhere(model: Mongoose.Model<any>, query: any, select?: Array<string> | any, queryOptions?: QueryOptions, toLoadChilds?: boolean, sort?: any, skip?: number, limit?: number): Q.Promise<any> {
+    model = getChangedModelForDynamicSchema(model, query);
     var sel = {};
     if (select instanceof Array) {
         select.forEach(x => {
@@ -302,10 +356,11 @@ export function findWhere(model: Mongoose.Model<any>, query: any, select?: Array
  * @param model
  * @param id
  */
-export function findOne(model: Mongoose.Model<any>, id) {
-    return Q.nbind(model.findOne, model)({ '_id': id })
+export function findOne(model: Mongoose.Model<any>, id, donotLoadChilds?: boolean) {
+    let newModel = getChangedModelForDynamicSchema(model, id);
+    return Q.nbind(model.findOne, newModel)({ '_id': id })
         .then(result => {
-            return mongooseHelper.embeddedChildren(model, result, false)
+            return mongooseHelper.embeddedChildren(model, result, false, donotLoadChilds)
                 .then(r => {
                     return Utils.toObject(r);
                 });
@@ -337,16 +392,41 @@ export function findByField(model: Mongoose.Model<any>, fieldName, value): Q.Pro
         });
 }
 
+export function getChangedModelForDynamicSchema(model: Mongoose.Model<any>, id: any): Mongoose.Model<any> {
+    let newModel = model;
+    try {
+        let obj = InstanceService.getInstanceFromType(getEntity(model.modelName), true);
+
+        if (obj.getCollectionName) {
+            newModel = getDbSpecifcModel(obj.getCollectionName(id), model.schema);
+            newModel.modelName = model.modelName;
+        }
+    } catch (ex) {
+        winstonLog.logError(ex);
+    }
+
+    return newModel;
+}
+
 /**
  * Usage - Find all the objects with given ids
  * @param model
  * @param ids
  */
 export function findMany(model: Mongoose.Model<any>, ids: Array<any>, toLoadEmbeddedChilds?: boolean) {
+    if (!ids) {
+        return Q.when([]);
+    }
+    if (ids && ids.length <= 0) {
+        return Q.when([]);
+    }
+
+
+    let newModel = getChangedModelForDynamicSchema(model, ids[0]);
     if (toLoadEmbeddedChilds == undefined) {
         toLoadEmbeddedChilds = false;
     }
-    return Q.nbind(model.find, model)({
+    return Q.nbind(model.find, newModel)({
         '_id': {
             $in: ids
         }
@@ -380,6 +460,7 @@ export function findMany(model: Mongoose.Model<any>, ids: Array<any>, toLoadEmbe
  * @param prop
  */
 export function findChild(model: Mongoose.Model<any>, id, prop): Q.Promise<any> {
+    model = getChangedModelForDynamicSchema(model, id);
     return Q.nbind(model.findOne, model)({ '_id': id })
         .then(result => {
             var res = Utils.toObject(result)[prop];
@@ -416,7 +497,19 @@ export function post(model: Mongoose.Model<any>, obj: any): Q.Promise<any> {
                 console.log(ex);
                 return Q.reject(ex);
             }
-            return Q.nbind(model.create, model)(new model(clonedObj)).then(result => {
+
+            if (obj.getUniqueId) {
+                clonedObj._id = obj.getUniqueId();
+            }
+
+            let newModel = model;
+            if (obj.getCollectionName) {
+                newModel = getDbSpecifcModel(obj.getCollectionName(), model.schema);
+            }
+
+            //Mongoose.Types.ObjectIdConstructor(clonedObj.pricsheetId+"fsdf");
+
+            return Q.nbind(newModel.create, newModel)(new newModel(clonedObj)).then(result => {
                 let resObj = Utils.toObject(result);
                 Object.assign(obj, resObj);
                 return obj;
@@ -435,6 +528,7 @@ export function post(model: Mongoose.Model<any>, obj: any): Q.Promise<any> {
  * @param id
  */
 export function del(model: Mongoose.Model<any>, id: any): Q.Promise<any> {
+    model = getChangedModelForDynamicSchema(model, id);
     return Q.nbind(model.findOneAndRemove, model)({ '_id': id })
         .then((response: any) => {
             return mongooseHelper.deleteCascade(model, Utils.toObject(response)).then(x => {
@@ -466,6 +560,9 @@ export function bulkDel(model: Mongoose.Model<any>, objs: Array<any>): Q.Promise
             ids.push(x);
         }
     });
+
+    model = getChangedModelForDynamicSchema(model, ids[0]);
+
     ids.forEach(x => {
         asyncCalls.push(del(model, x));
     });
@@ -511,6 +608,7 @@ function isDecoratorApplied(path: any, decorator: string, propertyKey: string) {
  */
 export function put(model: Mongoose.Model<any>, id: any, obj: any, path?: string): Q.Promise<any> {
     let clonedObj = mongooseHelper.removeTransientProperties(model, obj);
+    model = getChangedModelForDynamicSchema(model, id);
     // First update the any embedded property and then update the model
     return mongooseHelper.addChildModelToParent(model, clonedObj, id).then(result => {
         var updatedProps = Utils.getUpdatedProps(clonedObj, EntityChange.put);
@@ -554,7 +652,7 @@ export function put(model: Mongoose.Model<any>, id: any, obj: any, path?: string
  */
 export function patch(model: Mongoose.Model<any>, id: any, obj, path?: string): Q.Promise<any> {
     let clonedObj = mongooseHelper.removeTransientProperties(model, obj);
-    
+    model = getChangedModelForDynamicSchema(model, id);
     // First update the any embedded property and then update the model
     return mongooseHelper.addChildModelToParent(model, clonedObj, id).then(result => {
         var updatedProps = Utils.getUpdatedProps(clonedObj, EntityChange.patch);
@@ -564,8 +662,8 @@ export function patch(model: Mongoose.Model<any>, id: any, obj, path?: string): 
             updatedProps["$set"] && delete updatedProps["$set"]["__v"];
             updatedProps["$push"] && delete updatedProps["$push"]["__v"];
             updatedProps["$inc"] = { '__v': 1 };
-            if(obj["__v"]){
-              query["__v"] = obj["__v"];
+            if (obj["__v"]) {
+                query["__v"] = obj["__v"];
             }
         }
         return Q.nbind(model.findOneAndUpdate, model)(query, updatedProps, { new: true })

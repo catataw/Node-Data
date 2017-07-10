@@ -9,7 +9,7 @@ import {DecoratorType} from '../core/enums/decorator-type';
 import {MetaData} from '../core/metadata/metadata';
 import {IAssociationParams} from '../core/decorators/interfaces';
 import {IFieldParams, IDocumentParams} from './decorators/interfaces';
-import {GetRepositoryForName} from '../core/dynamic/dynamic-repository';
+import {GetRepositoryForName, DynamicRepository} from '../core/dynamic/dynamic-repository';
 import {getEntity, getModel, repoFromModel} from '../core/dynamic/model-entity';
 import * as Enumerable from 'linq';
 import {winstonLog} from '../logging/winstonLog';
@@ -31,6 +31,7 @@ export function updateParent(model: Mongoose.Model<any>, objs: Array<any>) {
                 var targetModelMeta = meta[0];
                 var repoName = (<IDocumentParams>targetModelMeta.params).name;
                 var model = Utils.getCurrentDBModel(repoName);
+
                 asyncCalls.push(updateParentDocument(model, x, objs));
             }
         });
@@ -45,14 +46,18 @@ export function updateParent(model: Mongoose.Model<any>, objs: Array<any>) {
 export function removeTransientProperties(model: Mongoose.Model<any>, obj: any): any {
     var clonedObj = {};
     Object.assign(clonedObj, obj);
-    var transientProps = Enumerable.from(MetaUtils.getMetaData(getEntity(model.modelName))).where((ele: MetaData, idx) => {
+    let transientProps = Enumerable.from(MetaUtils.getMetaData(getEntity(model.modelName))).where((ele: MetaData, idx) => {
         if (ele.decorator === Decorators.TRANSIENT) {
             return true;
         }
         return false;
-    }).forEach(element => {
-        delete clonedObj[element.propertyKey];
     });
+
+    if (transientProps) {
+        transientProps.forEach(element => {
+            delete clonedObj[element.propertyKey];
+        });
+    }
     return clonedObj;
 }
 
@@ -63,9 +68,13 @@ export function removeTransientProperties(model: Mongoose.Model<any>, obj: any):
  * @param val
  * @param force
  */
-export function embeddedChildren(model: Mongoose.Model<any>, val: any, force: boolean) {
+export function embeddedChildren(model: Mongoose.Model<any>, val: any, force: boolean, donotLoadChilds?: boolean) {
     if (!model)
         return;
+
+    if (donotLoadChilds) {
+        return Q.when(val);
+    }
 
     var asyncCalls = [];
     var metas = CoreUtils.getAllRelationsForTargetInternal(getEntity(model.modelName));
@@ -79,7 +88,7 @@ export function embeddedChildren(model: Mongoose.Model<any>, val: any, force: bo
         if (force || param.eagerLoading || param.embedded) {
             var relModel = Utils.getCurrentDBModel(param.rel);
             // find model repo and findMany from repo instead of calling mongoose model directly
-            let repo = repoFromModel[relModel.modelName];
+            let repo: DynamicRepository = repoFromModel[relModel.modelName];
             if (m.propertyType.isArray) {
                 if (val[m.propertyKey] && val[m.propertyKey].length > 0) {
                     asyncCalls.push(repo.findMany(val[m.propertyKey])
@@ -141,7 +150,7 @@ export function deleteCascade(model: Mongoose.Model<any>, updateObj: any) {
     relationToDelete.forEach(res => {
         var x = <IAssociationParams>res.params;
         var prop = updateObj[res.propertyKey];
-        if(!prop)
+        if (!prop)
             return;
         ids[x.rel] = ids[x.rel] || [];
         if (x.embedded) {
@@ -185,8 +194,9 @@ export function autogenerateIdsForAutoFields(model: Mongoose.Model<any>, obj: an
         .forEach((keyVal) => {
             var metaData = <MetaData>keyVal;
             var objectId = new Mongoose.Types.ObjectId();
-            if (metaData.getType() === String) {
-                obj[metaData.propertyKey] = objectId.toHexString();
+            if (metaData.getType() === String || metaData.getType() === "String") {
+                obj[metaData.propertyKey] = objectId.toString();
+
             } else if (metaData.getType() === Mongoose.Types.ObjectId || metaData.getType() === Object) {
                 obj[metaData.propertyKey] = objectId;
             } else {
@@ -250,6 +260,9 @@ export function addChildModelToParent(model: Mongoose.Model<any>, obj: any, id: 
 function updateParentDocument(model: Mongoose.Model<any>, meta: MetaData, objs: Array<any>) {
     var queryCond = {};
     var ids = Enumerable.from(objs).select(x => x['_id']).toArray();
+
+    model = mongooseModel.getChangedModelForDynamicSchema(model, ids[0]);
+
     queryCond[meta.propertyKey + '._id'] = { $in: ids };
     return Q.nbind(model.find, model)(queryCond, { '_id': 1 }).then((result: Array<any>) => {
         if (!result) {
@@ -265,7 +278,13 @@ function updateParentDocument(model: Mongoose.Model<any>, meta: MetaData, objs: 
         for (var i = 0; i < objs.length; i++) {
             var queryFindCond = {};
             var updateSet = {};
-            var objectId = Utils.castToMongooseType(objs[i]._id, Mongoose.Types.ObjectId);
+            var objectId;
+            if (typeof (objs[i]._id) === "string") {
+                objectId = objs[i]._id;
+            }
+            else {
+                objectId = Utils.castToMongooseType(objs[i]._id, Mongoose.Types.ObjectId);
+            }
             queryFindCond['_id'] = { $in: parentIds };
             queryFindCond[meta.propertyKey + '._id'] = objectId;
             let updateMongoOperator = Utils.getMongoUpdatOperatorForRelation(meta);
@@ -274,7 +293,7 @@ function updateParentDocument(model: Mongoose.Model<any>, meta: MetaData, objs: 
         }
 
         return Q.nbind(bulk.execute, bulk)().then(result => {
-           return  mongooseModel.findMany(model, parentIds).then(objects => {
+            return mongooseModel.findMany(model, parentIds).then(objects => {
                 return updateParent(model, objects).then(res => {
                     return objects;
                 });
@@ -461,7 +480,7 @@ function isDataValid(model: Mongoose.Model<any>, val: any, id: any) {
         if (val[m.propertyKey]) {
             asyncCalls.push(isRelationPropertyValid(model, m, val[m.propertyKey], id).then(res => {
                 if (res != undefined && !res) {
-                    let error:any = new Error();
+                    let error: any = new Error();
                     error.propertyKey = m.propertyKey;
                     throw error;
                 }
@@ -469,9 +488,9 @@ function isDataValid(model: Mongoose.Model<any>, val: any, id: any) {
         }
     });
     return Q.all(asyncCalls).catch(f => {
-        let errorMessage='Invalid value. Adding to property '+ "'"+ f.propertyKey+ "'"+ ' will break the relation in model: '+ model.modelName;
-            winstonLog.logError(errorMessage);
-            throw errorMessage;
+        let errorMessage = 'Invalid value. Adding to property ' + "'" + f.propertyKey + "'" + ' will break the relation in model: ' + model.modelName;
+        winstonLog.logError(errorMessage);
+        throw errorMessage;
     });
 }
 

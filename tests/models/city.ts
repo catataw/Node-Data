@@ -20,6 +20,19 @@ export class city extends baseModel {
     @onetomany({ rel: 'school', itemType: school, embedded: true, persist: true, eagerLoading: false, deleteCascade: true, properties: ['name'] })
     //@onetomany({ rel: 'school', itemType: school, embedded: true, persist: true, eagerLoading: false})
     schools: Array<school>;
+
+
+    save()
+    {
+        //return new Promise((resolved, reject) => {
+        //    return new Promise((resolved, reject) => {
+        //        this.post().then((sucess) => resolved(sucess));
+        //    });
+        //});
+
+        return (new school()).post();
+    }
+    
 }
 
 export default city;

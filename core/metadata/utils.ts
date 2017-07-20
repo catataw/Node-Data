@@ -59,6 +59,7 @@ interface IMetadataHelper {
     getMetaDataForPropKey(target: Object, propertyKey?: string, paramIndex?: number): Array<MetaData>;
     refreshDerivedObjectsMetadata();
     getDescriptiveMetadata(type, baseRelMeta, recursionLevel?: number): any;
+    getMetaDataFromName(name: string): Array<any>;
 }
 
 class MetadataHelper {
@@ -129,6 +130,14 @@ class MetadataHelper {
             case 3: return MetadataHelper.getMetaDataForTargetDecoratorAndPropKey(DecoratorType.METHOD, target, decorator, propertyKey, paramIndex);
             case 4: return MetadataHelper.getMetaDataForTargetDecoratorAndPropKey(DecoratorType.PARAM, target, decorator, propertyKey, paramIndex);
         }
+    }
+
+
+    public static getMetaDataFromName(modelName: string): Array<any> {
+
+        return Object.keys(_documnetNameAndTargetMapping).
+            filter((key) => _documnetNameAndTargetMapping[key].constructor.name == modelName)
+        
     }
 
     public static getMetaDataFromType(modelType: string): Array<MetaData> {

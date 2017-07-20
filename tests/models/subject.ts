@@ -7,7 +7,7 @@ import {baseModel} from './baseModel';
 @document({ name: 'subject', strict: Strict.false })
 export class subject extends baseModel {
     constructor(object?: any) {
-        super(object);
+        super();
         if (!object || !object._id) {
             this.createdDate = Date.now().toString();
         }

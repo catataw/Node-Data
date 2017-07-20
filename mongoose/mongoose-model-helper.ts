@@ -232,13 +232,13 @@ export function updateEmbeddedOnEntityChange(model: Mongoose.Model<any>, entityC
  * @param model
  * @param obj
  */
-export function addChildModelToParent(model: Mongoose.Model<any>, obj: any, id: any) {
+export function addChildModelToParent(model: Mongoose.Model<any>, obj: any, id: any,parentAction?:string) {
     var asyncCalls = [];
     var metaArr = CoreUtils.getAllRelationsForTargetInternal(getEntity(model.modelName));
     for (var m in metaArr) {
         var meta: MetaData = <any>metaArr[m];
-        if (obj[meta.propertyKey]) {
-            asyncCalls.push(embedChild(obj, meta.propertyKey, meta));
+        if (obj[meta.propertyKey]  ) {
+            asyncCalls.push(embedChild(obj, meta.propertyKey, meta, parentAction));
         }
     }
 
@@ -620,7 +620,86 @@ export function fetchEagerLoadingProperties(model: Mongoose.Model<any>, val: any
     });
 }
 
-function embedChild(obj, prop, relMetadata: MetaData): Q.Promise<any> {
+/**
+ * Rules to decide if cascading at current level allowed.
+ * @param relMetadata  meta data of relation (decorator)
+ * @param parentAction action performed over parent (post,put,patch,delete,loadchild)
+ */
+function checkIfCascadingAllow(relMetadata: MetaData, parentAction?: string): boolean {
+    let allowCascade = true;
+    if (parentAction == "post") {
+        if (relMetadata.decorator === Decorators.ONETOONE ||
+            relMetadata.decorator === Decorators.ONETOMANY) {
+            allowCascade = true; //set as default value
+        }
+        if (relMetadata.decorator === Decorators.MANYTOONE) {
+            allowCascade = false; //set as default value
+        }
+
+        //check if developer has overridde default vaule
+        if (relMetadata.params && relMetadata.params.cascadeType
+            && relMetadata.params.cascadeType.cascadePost
+        ) {
+            allowCascade = relMetadata.params.cascadeType.cascadePost;
+        }
+    }
+    if (parentAction == "put") {
+        allowCascade = false;
+        if (relMetadata.params && relMetadata.params.cascadeType
+            && relMetadata.params.cascadeType.cascadePut) {
+            allowCascade = relMetadata.params.cascadeType.cascadePut;
+        }
+    }
+    if (parentAction == "patch") {
+        allowCascade = false;
+        if (relMetadata.params && relMetadata.params.cascadeType
+            && relMetadata.params.cascadeType.cascadePatch) {
+            allowCascade = relMetadata.params.cascadeType.cascadePatch;
+        }
+    }
+
+    if (parentAction == "delete") {
+        if (relMetadata.decorator === Decorators.MANYTOONE ||
+            relMetadata.decorator === Decorators.ONETOMANY) {
+            allowCascade = false; //set as default value
+        }
+        if (relMetadata.decorator === Decorators.ONETOONE) {
+            allowCascade = true; //set as default value
+        }
+
+        //check if developer has overridde default vaule
+        if (relMetadata.params && relMetadata.params.cascadeType
+            && relMetadata.params.cascadeType.cascadePost
+        ) {
+            allowCascade = relMetadata.params.cascadeType.cascadePost;
+        }
+    }
+
+    if (parentAction == "loadChild") {
+        if (relMetadata.params.embedded) {
+            allowCascade = false;
+        }
+        else {
+            allowCascade = true;
+            if (relMetadata.params && relMetadata.params.cascadeType
+                && relMetadata.params.cascadeType.cascadeChildLoad
+            ) {
+                allowCascade = relMetadata.params.cascadeType.cascadeChildLoad;
+            }
+        }
+    }
+
+
+    return allowCascade;
+}
+
+//
+//obj - parent object
+//prop - property key in obj
+//relMetadata - decoration information of reltion
+//parentAction -action on parent(post,put,patch,delete)
+//
+function embedChild(obj, prop, relMetadata: MetaData, parentAction?: string): Q.Promise<any> {
     if (!obj[prop])
         return;
     if (relMetadata.propertyType.isArray && !(obj[prop] instanceof Array)) {
@@ -631,25 +710,34 @@ function embedChild(obj, prop, relMetadata: MetaData): Q.Promise<any> {
         winstonLog.logError('Expected single item, found array');
         throw 'Expected single item, found array';
     }
+    if (!checkIfCascadingAllow(relMetadata, parentAction)) {
+        return;
+    }
+
     var createNewObj = [];
     var params: IAssociationParams = <any>relMetadata.params;
     var relModel = Utils.getCurrentDBModel(params.rel);
     var val = obj[prop];
-    var newVal = val;
+    var newVal = val; // updated value after cascading complete
+    
     var asyncTask = [];
     if (relMetadata.propertyType.isArray) {
         newVal = [];
-        var objs = [];
-        var searchObj = [];
+        var exsitingsVals = []; // updated value after cascading complete
+        var objs = [];//obejcts to be creaed
+        var searchObj = []; // if child is mentioned with id not as actual object (for embedded it need to pull from DB)
+        // val is child
+        
         for (var i in val) {
+            //val[i] each element in array
             if (CoreUtils.isJSON(val[i])) {
                 if (val[i]['_id']) {
                     val[i]['_id'] = Utils.castToMongooseType(val[i]['_id'], Mongoose.Types.ObjectId);
                     if (params.embedded) {
-                        newVal.push(val[i]);
+                        exsitingsVals.push(val[i]);
                     }
                     else {
-                        newVal.push(val[i]['_id']);
+                        exsitingsVals.push(val[i]['_id']);
                     }
                 }
                 else {
@@ -658,15 +746,33 @@ function embedChild(obj, prop, relMetadata: MetaData): Q.Promise<any> {
             }
             else {
                 if (!params.embedded) {
-                    newVal.push(Utils.castToMongooseType(val[i], Mongoose.Types.ObjectId));
+                    exsitingsVals.push(Utils.castToMongooseType(val[i], Mongoose.Types.ObjectId));
                 }
                 else {
                     searchObj.push(val[i]);
                 }
             }
         }
+        //till now newVal will have existing items with Ids
+        if (exsitingsVals.length) {
+            //action post do nothing
+            if (parentAction && parentAction == "put") {
+                asyncTask.push(exsitingsVals.bulkPut().then(result => {
+                    if (params.embedded) {
+                        newVal = newVal.concat(result);
+                    }
+                    else {
+                        newVal = newVal.concat(Enumerable.from(result).select(x => x['_id']).toArray());
+                    }
+                }));
+            }
+            //on put or patch newVal.BulkUpate and tell method not to update obj
+        }
+
         if (objs.length > 0) {
-            asyncTask.push(mongooseModel.bulkPost(relModel, objs).then(result => {
+            //TODO :- cascade replace with actual repo call
+            //new items will be alwasys get created
+            asyncTask.push(objs.bulkPost().then(result => {
                 if (params.embedded) {
                     newVal = newVal.concat(result);
                 }
@@ -694,6 +800,9 @@ function embedChild(obj, prop, relMetadata: MetaData): Q.Promise<any> {
                 }
             }
             else {
+                //TODO:- cascade , replac with repo's post
+                // check if cascade defined other check for embed (set cascade post true)
+                //if cascade is false then 
                 asyncTask.push(mongooseModel.post(relModel, val).then(res => {
                     if (params.embedded) {
                         newVal = res;

@@ -1,12 +1,14 @@
+
 import {DecoratorType} from '../enums/decorator-type';
 import {ParamTypeCustom} from './param-type-custom';
 import {ReflectConstants} from '../constants';
 import * as ReflectUtils from '../reflect/reflect-utils';
+import {IAssociationParams} from "../decorators/interfaces/association-params";
 
 export interface IMetaOptions {
     decorator: string;
     decoratorType: DecoratorType;
-    params?: any;
+    params?: IAssociationParams | any;
     propertyKey?: string;
     paramIndex?: number;
     paramTypes?: Array<ParamTypeCustom>;
@@ -37,7 +39,7 @@ export class MetaData {
     propertyType: ParamTypeCustom;
     returnType: ParamTypeCustom;
     paramTypes: Array<ParamTypeCustom>
-    params: any;
+    params: IAssociationParams | any;
     decoratorType: DecoratorType;
     paramIndex: number;
 

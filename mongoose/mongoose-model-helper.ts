@@ -91,7 +91,7 @@ export function embeddedChildren(model: Mongoose.Model<any>, val: any, force: bo
             let repo: DynamicRepository = repoFromModel[relModel.modelName];
             if (m.propertyType.isArray) {
                 if (val[m.propertyKey] && val[m.propertyKey].length > 0) {
-                    asyncCalls.push(repo.findMany(val[m.propertyKey])
+                    asyncCalls.push(repo.findMany(val[m.propertyKey], checkIfCascadingAllow(m,"loadChild") )
                         .then(result => {
                             //var childCalls = [];
                             //var updatedChild = [];
@@ -110,7 +110,7 @@ export function embeddedChildren(model: Mongoose.Model<any>, val: any, force: bo
             }
             else {
                 if (val[m.propertyKey]) {
-                    asyncCalls.push(repo.findOne(val[m.propertyKey])
+                    asyncCalls.push(repo.findOne(val[m.propertyKey], checkIfCascadingAllow(m, "loadChild"))
                         .then(result => {
                             //return Q.resolve(embeddedChildren(relModel, result, false).then(r => {
                             //    val[m.propertyKey] = r;
@@ -724,7 +724,7 @@ function embedChild(obj, prop, relMetadata: MetaData, parentAction?: string): Q.
     if (relMetadata.propertyType.isArray) {
         newVal = [];
         var exsitingsVals = []; // updated value after cascading complete
-        var objs = [];//obejcts to be creaed
+        var objs = [];//obejcts to be created
         var searchObj = []; // if child is mentioned with id not as actual object (for embedded it need to pull from DB)
         // val is child
         

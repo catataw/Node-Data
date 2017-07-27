@@ -9,6 +9,9 @@ export class baseModel extends CrudEntity {
 
     @field()
     name: String;
+
+
+    
 }
 
 export default baseModel;

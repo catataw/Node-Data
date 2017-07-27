@@ -12,11 +12,11 @@ export interface IAssociationParams {
 
 
 export interface ICascadeTypeParams {
-    cascadeAll: boolean,
+    cascadeAll?: boolean,
     //-----default {for embedded true , else it will be false and developer need to set it }-------
-    cascadeDelete: boolean, 
-    cascadePut: boolean,
-    cascadePatch: boolean,
-    cascadePost: boolean,
+    cascadeDelete?: boolean, 
+    cascadePut?: boolean,
+    cascadePatch?: boolean,
+    cascadePost?: boolean
     //---------------------------------------------------------------------------------------------
 }

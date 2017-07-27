@@ -13,7 +13,7 @@ import {Decorators} from '../core/constants/decorators';
 import {GetRepositoryForName} from '../core/dynamic/dynamic-repository';
 import {InstanceService} from '../core/services/instance-service';
 import {getDbSpecifcModel} from './db';
-
+import {CrudEntity} from "../core/dynamic/crud.entity";
 /**
  * Iterate through objArr and check if any child object need to be added. If yes, then add those child objects.
  * Bulk create these updated objects.
@@ -37,7 +37,7 @@ export function bulkPost(model: Mongoose.Model<any>, objArr: Array<any>): Q.Prom
     Enumerable.from(objArr).forEach(obj => {
         var cloneObj = mongooseHelper.removeTransientProperties(model, obj);
         clonedModels.push(cloneObj);
-        addChildModel.push(mongooseHelper.addChildModelToParent(model, cloneObj, null));
+        addChildModel.push(mongooseHelper.addChildModelToParent(model, cloneObj, null,"post"));
     });
 
     return Q.allSettled(addChildModel)
@@ -84,7 +84,7 @@ export function bulkPost(model: Mongoose.Model<any>, objArr: Array<any>): Q.Prom
  * @param model
  * @param objArr
  */
-export function bulkPut(model: Mongoose.Model<any>, objArr: Array<any>): Q.Promise<any> {
+export function bulkPut(model: Mongoose.Model<any>, objArr: Array<CrudEntity>): Q.Promise<any> {
 
     if (!objArr) {
         return Q.when([]);
@@ -103,10 +103,10 @@ export function bulkPut(model: Mongoose.Model<any>, objArr: Array<any>): Q.Promi
 
     // classic for loop used gives high performanance
     for (var i = 0; i < length; i++) {
-        asyncCalls.push(mongooseHelper.addChildModelToParent(model, objArr[i], objArr[i]._id).then(result => {
-            var objectId = new Mongoose.Types.ObjectId(result._id);
-            delete result._id;
+        asyncCalls.push(mongooseHelper.addChildModelToParent(model, objArr[i], objArr[i]._id, "put").then(result => {
             let clonedObj = mongooseHelper.removeTransientProperties(model, result);
+            var objectId = new Mongoose.Types.ObjectId(clonedObj._id);
+            delete clonedObj._id;
             var updatedProps = Utils.getUpdatedProps(clonedObj, EntityChange.put);
             bulk.find({ _id: objectId }).update(updatedProps);
         }));
@@ -115,7 +115,22 @@ export function bulkPut(model: Mongoose.Model<any>, objArr: Array<any>): Q.Promi
     return Q.allSettled(asyncCalls).then(x => {
         return Q.nbind(bulk.execute, bulk)().then(result => {
             // update parent
-            return findMany(model, ids).then(objects => {
+            return findMany(model, ids).then((objects : Array<CrudEntity>) => {
+
+                //update stack here
+                objects = objects.map((dbObj) => {
+                    let formermapObj = objArr.filter((objFormer: CrudEntity) => {
+                        return objFormer._id.toString() == dbObj._id.toString()
+                    });
+
+                    formermapObj = formermapObj[0];
+
+                    if (formermapObj) {
+                        dbObj.__callStack = formermapObj.__callStack;
+                    }
+                    return dbObj;
+                });
+
                 return mongooseHelper.updateParent(model, objects).then(res => {
                     return objects;
                 });
@@ -148,7 +163,7 @@ export function bulkPut(model: Mongoose.Model<any>, objArr: Array<any>): Q.Promi
  * @param model
  * @param objArr
  */
-export function bulkPatch(model: Mongoose.Model<any>, objArr: Array<any>): Q.Promise<any> {
+export function bulkPatch(model: Mongoose.Model<any>, objArr: Array<CrudEntity>): Q.Promise<any> {
 
     if (!objArr) {
         return Q.when([]);
@@ -166,10 +181,11 @@ export function bulkPatch(model: Mongoose.Model<any>, objArr: Array<any>): Q.Pro
 
     // classic for loop used gives high performanance
     for (var i = 0; i < length; i++) {
-        asyncCalls.push(mongooseHelper.addChildModelToParent(model, objArr[i], objArr[i]._id).then(result => {
-            var objectId = new Mongoose.Types.ObjectId(result._id);
-            delete result._id;
+        asyncCalls.push(mongooseHelper.addChildModelToParent(model, objArr[i], objArr[i]._id, "patch").then(result => {
             let clonedObj = mongooseHelper.removeTransientProperties(model, result);
+            var objectId = new Mongoose.Types.ObjectId(clonedObj._id);
+            delete clonedObj._id;
+           
             var updatedProps = Utils.getUpdatedProps(clonedObj, EntityChange.patch);
             bulk.find({ _id: objectId }).update(updatedProps);
         }));
@@ -179,6 +195,18 @@ export function bulkPatch(model: Mongoose.Model<any>, objArr: Array<any>): Q.Pro
         return Q.nbind(bulk.execute, bulk)().then(result => {
             // update parent
             return findMany(model, ids).then(objects => {
+
+                objects = objects.map((dbObj) => {
+                    let formermapObj = objArr.filter((objFormer: CrudEntity) => {
+                        return objFormer._id.toString() == dbObj._id.toString()
+                    })[0];
+
+                    if (formermapObj) {
+                        dbObj.__callStack = formermapObj.__callStack;
+                    }
+                    return dbObj;
+                });
+
                 return mongooseHelper.updateParent(model, objects).then(res => {
                     return objects;
                 });
@@ -488,7 +516,7 @@ export function findChild(model: Mongoose.Model<any>, id, prop): Q.Promise<any> 
  */
 export function post(model: Mongoose.Model<any>, obj: any): Q.Promise<any> {
     let clonedObj = mongooseHelper.removeTransientProperties(model, obj);
-    return mongooseHelper.addChildModelToParent(model, clonedObj, null)
+    return mongooseHelper.addChildModelToParent(model, clonedObj, null,"post")
         .then(result => {
             try {
                 mongooseHelper.autogenerateIdsForAutoFields(model, clonedObj);
@@ -610,7 +638,7 @@ export function put(model: Mongoose.Model<any>, id: any, obj: any, path?: string
     let clonedObj = mongooseHelper.removeTransientProperties(model, obj);
     model = getChangedModelForDynamicSchema(model, id);
     // First update the any embedded property and then update the model
-    return mongooseHelper.addChildModelToParent(model, clonedObj, id).then(result => {
+    return mongooseHelper.addChildModelToParent(model, clonedObj, id,"put").then(result => {
         var updatedProps = Utils.getUpdatedProps(clonedObj, EntityChange.put);
         let isDecoratorPresent = isDecoratorApplied(path, Decorators.OPTIMISTICLOCK, "put");
         let query: Object = { '_id': id };
@@ -654,7 +682,7 @@ export function patch(model: Mongoose.Model<any>, id: any, obj, path?: string): 
     let clonedObj = mongooseHelper.removeTransientProperties(model, obj);
     model = getChangedModelForDynamicSchema(model, id);
     // First update the any embedded property and then update the model
-    return mongooseHelper.addChildModelToParent(model, clonedObj, id).then(result => {
+    return mongooseHelper.addChildModelToParent(model, clonedObj, id,"patch").then(result => {
         var updatedProps = Utils.getUpdatedProps(clonedObj, EntityChange.patch);
         let isDecoratorPresent = isDecoratorApplied(path, Decorators.OPTIMISTICLOCK, "patch");
         let query: Object = { '_id': id };

@@ -14,6 +14,8 @@ import {getEntity, getModel, repoFromModel} from '../core/dynamic/model-entity';
 import * as Enumerable from 'linq';
 import {winstonLog} from '../logging/winstonLog';
 import * as mongooseModel from './mongoose-model';
+import {CrudEntity} from "../core/dynamic/crud.entity";
+import {InstanceService} from '../core/services/instance-service';
 
 /**
  * finds all the parent and update them. It is called when bulk objects are updated
@@ -43,9 +45,10 @@ export function updateParent(model: Mongoose.Model<any>, objs: Array<any>) {
  * @param model
  * @param obj
  */
-export function removeTransientProperties(model: Mongoose.Model<any>, obj: any): any {
-    var clonedObj = {};
-    Object.assign(clonedObj, obj);
+export function removeTransientProperties(model: Mongoose.Model<any>, obj: CrudEntity): any {
+    var clonedObj: CrudEntity = InstanceService.getInstance(getEntity(model.modelName), obj._id, obj);
+    //var clonedObj = getEntity(model.modelName);
+  //  Object.assign(clonedObj, obj);
     let transientProps = Enumerable.from(MetaUtils.getMetaData(getEntity(model.modelName))).where((ele: MetaData, idx) => {
         if (ele.decorator === Decorators.TRANSIENT) {
             return true;
@@ -58,6 +61,7 @@ export function removeTransientProperties(model: Mongoose.Model<any>, obj: any):
             delete clonedObj[element.propertyKey];
         });
     }
+    
     return clonedObj;
 }
 
@@ -257,9 +261,22 @@ export function addChildModelToParent(model: Mongoose.Model<any>, obj: any, id: 
  * @param meta
  * @param objs
  */
-function updateParentDocument(model: Mongoose.Model<any>, meta: MetaData, objs: Array<any>) {
+function updateParentDocument(model: Mongoose.Model<any>, meta: MetaData, objs: Array<CrudEntity>) {
     var queryCond = {};
+
+    //exclude already update objects from stack
+
+    objs = objs.filter((obj) => {
+        return !obj.__callStack || (obj.__callStack &&
+            obj.__callStack.callStack.filter((callstack) => {
+                return (callstack.objType === model.modelName) &&
+                    (obj._id.toString() === callstack._id)
+            }).length > 0)
+    })
+
     var ids = Enumerable.from(objs).select(x => x['_id']).toArray();
+
+    model.modelName
 
     model = mongooseModel.getChangedModelForDynamicSchema(model, ids[0]);
 
@@ -346,6 +363,7 @@ function bulkDelete(model: Mongoose.Model<any>, ids: any) {
     return mongooseModel.findMany(model, ids).then(data => {
         return Q.nbind(model.remove, model)({
             '_id': {
+
                 $in: ids
             }
         }).then(x => {
@@ -360,25 +378,25 @@ function bulkDelete(model: Mongoose.Model<any>, ids: any) {
     });
 }
 
-function patchAllEmbedded(model: Mongoose.Model<any>, prop: string, updateObj: any, entityChange: EntityChange, isEmbedded: boolean, isArray?: boolean): Q.Promise<any> {
+function patchAllEmbedded(model: Mongoose.Model<any>, prop: string, updateObj: CrudEntity, entityChange: EntityChange, isEmbedded: boolean, isArray?: boolean): Q.Promise<any> {
     if (isEmbedded) {
 
         var queryCond = {};
         queryCond[prop + '._id'] = updateObj['_id'];
+        if (updateObj.__callStack && updateObj.__callStack.callStack && updateObj.__callStack.callStack.length) {
+            queryCond['_id'] = { $ne: updateObj.__callStack.callStack.map((x) => x._id) };
+        }
 
         if (entityChange === EntityChange.put
             || entityChange === EntityChange.patch
             || (entityChange === EntityChange.delete && !isArray)) {
-
-            var cond = {};
-            cond[prop + '._id'] = updateObj['_id'];
 
             var newUpdateObj = {};
             isArray
                 ? newUpdateObj[prop + '.$'] = updateObj
                 : newUpdateObj[prop] = entityChange === EntityChange.delete ? null : updateObj;
 
-            return Q.nbind(model.update, model)(cond, { $set: newUpdateObj }, { multi: true })
+            return Q.nbind(model.update, model)(queryCond, { $set: newUpdateObj }, { multi: true })
                 .then(result => {
                     return updateEmbeddedParent(model, queryCond, result, prop);
                 }).catch(error => {
@@ -693,12 +711,14 @@ function checkIfCascadingAllow(relMetadata: MetaData, parentAction?: string): bo
     return allowCascade;
 }
 
+
 //
 //obj - parent object
 //prop - property key in obj
 //relMetadata - decoration information of reltion
 //parentAction -action on parent(post,put,patch,delete)
-//
+//object1 cadcasding
+//object1 if someone set id action , id to object replace (if embedded)
 function embedChild(obj, prop, relMetadata: MetaData, parentAction?: string): Q.Promise<any> {
     if (!obj[prop])
         return;
@@ -710,9 +730,133 @@ function embedChild(obj, prop, relMetadata: MetaData, parentAction?: string): Q.
         winstonLog.logError('Expected single item, found array');
         throw 'Expected single item, found array';
     }
-    if (!checkIfCascadingAllow(relMetadata, parentAction)) {
-        return;
+    let isCascade = checkIfCascadingAllow(relMetadata, parentAction);
+
+    let params: IAssociationParams = <any>relMetadata.params;
+    let relModel = Utils.getCurrentDBModel(params.rel);
+    let val = obj[prop];
+
+    let newVal: Array<any> | any = {}; // updated value after cascading complete
+
+    let asyncTask = [];
+    let exsitingsValObjects = []; // updated value after cascading complete
+    let newObjs = [];//obejcts to be created
+    let searchObj = []; // if child is mentioned with id not as actual object (for embedded it need to pull from DB and set it back)
+
+    if (relMetadata.propertyType.isArray) {
+        newVal = [];
+        exsitingsValObjects = val.filter((elementArr) => { return CoreUtils.isJSON(elementArr) && elementArr['_id'] })
+        newObjs = val.filter((elementArr) => { return CoreUtils.isJSON(elementArr) && !elementArr['_id'] })
+        searchObj = val.filter((elementArr) => {
+            return !CoreUtils.isJSON(elementArr)
+                && params.embedded  //need to check for bson as well
+        })
     }
+    else {
+        let applicableObj = !CoreUtils.isJSON(val) ? searchObj : (val['_id'] ? exsitingsValObjects : newObjs)  //need to check for bson as well
+        applicableObj.push(val);
+    }
+
+
+    exsitingsValObjects.forEach((elementArr) => {
+        elementArr['_id'] = Utils.castToMongooseType(elementArr['_id'], Mongoose.Types.ObjectId);
+    })
+    searchObj = searchObj.map((xval) => Utils.castToMongooseType(xval, Mongoose.Types.ObjectId)) //igonre for bson
+
+
+    
+
+    let applicableAction = parentAction;
+    if (relMetadata.propertyType.isArray) {
+        applicableAction = parentAction == "post" ? "bulkPost" : (parentAction == "put" ? "bulkPut" : "bulkPatch");
+    }
+
+    if ((parentAction == "post" && checkIfCascadingAllow(relMetadata, parentAction)) ||
+        (parentAction == "put" && checkIfCascadingAllow(relMetadata, "post"))) {
+        asyncTask = [...asyncTask,entitiesResolvers(newObjs, "bulkPost", params)]
+    }
+
+    if (checkIfCascadingAllow(relMetadata, parentAction)) {
+        exsitingsValObjects.forEach((objToBeStackAdded: CrudEntity) => {
+            let modelName = obj.getRepo().modelName();
+            if (!objToBeStackAdded.__callStack) {
+                objToBeStackAdded.__callStack = { key: "callStack", callStack: [] };
+            }
+            if (!objToBeStackAdded.__callStack.callStack) {
+                objToBeStackAdded.__callStack.callStack = [];
+            }
+            objToBeStackAdded.__callStack.callStack.push({ objType: modelName, _id: obj._id.toString() });
+        })
+        asyncTask = [...asyncTask,
+            entitiesResolvers(exsitingsValObjects, applicableAction, params)]
+    }
+    else {
+        newVal = exsitingsValObjects;
+    }
+    if (searchObj && searchObj.length) {
+        asyncTask = [...asyncTask, mongooseModel.findMany(relModel, searchObj).then(res => {
+            newVal = relMetadata.propertyType.isArray ? newVal.concat(res) : (res[0] ? res[0] : newVal);
+        })]
+    }
+
+    return Q.allSettled(asyncTask).then((res:Array<any>) => {
+        if (res && res.length) {
+            res = res.map((result) => { return result && result.value });
+            res.forEach((result: Array<any>) => {
+                if (result) {
+                    newVal = newVal.concat(result);
+                }
+            })
+            if (!relMetadata.propertyType.isArray) {
+                newVal = newVal[0];
+            }
+            obj[prop] = embedSelectedPropertiesOnly(params, newVal);
+        }
+    });
+}
+
+
+function entitiesResolvers(entities, action, params) {
+    return new Promise((resolved, reject) => {
+        if (!entities || (entities && entities instanceof Array && entities.length <= 0)) {
+            resolved(undefined);
+        }
+        else {
+            entities[action]().then(result => {
+                if (result instanceof Array) {
+                    if (!params.embedded) {
+                        result = Enumerable.from(result).select(x => x['_id']).toArray()
+                    }                   
+                }
+                else {
+                    result = !params.embedded ? [result['_id']] : [result];
+                }
+                resolved(result);
+            })
+        }
+    });
+}
+
+
+
+//
+//obj - parent object
+//prop - property key in obj
+//relMetadata - decoration information of reltion
+//parentAction -action on parent(post,put,patch,delete)
+//
+function embedChild_old(obj, prop, relMetadata: MetaData, parentAction?: string): Q.Promise<any> {
+    if (!obj[prop])
+        return;
+    if (relMetadata.propertyType.isArray && !(obj[prop] instanceof Array)) {
+        winstonLog.logError('Expected array, found non-array');
+        throw 'Expected array, found non-array';
+    }
+    if (!relMetadata.propertyType.isArray && (obj[prop] instanceof Array)) {
+        winstonLog.logError('Expected single item, found array');
+        throw 'Expected single item, found array';
+    }
+    let isCascade = checkIfCascadingAllow(relMetadata, parentAction);
 
     var createNewObj = [];
     var params: IAssociationParams = <any>relMetadata.params;
@@ -755,10 +899,11 @@ function embedChild(obj, prop, relMetadata: MetaData, parentAction?: string): Q.
             }
         }
         //till now newVal will have existing items with Ids
-        if (exsitingsVals.length) {
+        if (exsitingsVals.length ) {
             //action post do nothing
-            if (parentAction && parentAction == "put") {
-                asyncTask.push(exsitingsVals.bulkPut().then(result => {
+            if (isCascade && parentAction && (parentAction == "put" || parentAction == "patch" || parentAction == "post")) {
+                let bulkAction = parentAction == "put" ? "bulkPut" : ("post" ? "bulkPost": " bulkPatch");
+                asyncTask.push(exsitingsVals[bulkAction]().then(result => {
                     if (params.embedded) {
                         newVal = newVal.concat(result);
                     }
@@ -766,6 +911,9 @@ function embedChild(obj, prop, relMetadata: MetaData, parentAction?: string): Q.
                         newVal = newVal.concat(Enumerable.from(result).select(x => x['_id']).toArray());
                     }
                 }));
+            }
+            else {
+                newVal = [...newVal, ...exsitingsVals];
             }
             //on put or patch newVal.BulkUpate and tell method not to update obj
         }
@@ -807,7 +955,7 @@ function embedChild(obj, prop, relMetadata: MetaData, parentAction?: string): Q.
                 //TODO:- cascade , replac with repo's post
                 // check if cascade defined other check for embed (set cascade post true)
                 //if cascade is false then 
-                asyncTask.push(mongooseModel.post(relModel, val).then(res => {
+                asyncTask.push(val.post().then(res => {
                     if (params.embedded) {
                         newVal = res;
                     }

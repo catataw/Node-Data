@@ -82,12 +82,12 @@ export class DynamicRepository implements IDynamicRepository {
         return this.rootLevelRep;
     }
 
-   public bulkPost(objArr: Array<any>) {
+    public bulkPost(objArr: Array<any>, batchSize?: number) {
         var objs = [];
         objArr.forEach(x => {
             objs.push(InstanceService.getInstance(this.getEntity(), null, x));
         });
-        return Utils.entityService(pathRepoMap[this.path].modelType).bulkPost(this.path, objs).then(result => {
+        return Utils.entityService(pathRepoMap[this.path].modelType).bulkPost(this.path, objs, batchSize).then(result => {
             if (result && result.length > 0) {
                 var res = [];
                 result.forEach(x => {
@@ -104,7 +104,16 @@ export class DynamicRepository implements IDynamicRepository {
         objArr.forEach(x => {
             objs.push(InstanceService.getInstance(this.getEntity(), null, x));
         });
-        return Utils.entityService(pathRepoMap[this.path].modelType).bulkPut(this.path, objs);
+        return Utils.entityService(pathRepoMap[this.path].modelType).bulkPut(this.path, objs).then(result => {
+            if (result && result.length > 0) {
+                var res = [];
+                result.forEach(x => {
+                    res.push(InstanceService.getObjectFromJson(this.getEntity(), x));
+                });
+                return res;
+            }
+            return result;
+        });
     }
 
     public bulkPatch(objArr: Array<any>) {
@@ -112,7 +121,16 @@ export class DynamicRepository implements IDynamicRepository {
         objArr.forEach(x => {
             objs.push(InstanceService.getInstance(this.getEntity(), null, x));
         });
-        return Utils.entityService(pathRepoMap[this.path].modelType).bulkPatch(this.path, objs);
+        return Utils.entityService(pathRepoMap[this.path].modelType).bulkPatch(this.path, objs).then(result => {
+            if (result && result.length > 0) {
+                var res = [];
+                result.forEach(x => {
+                    res.push(InstanceService.getObjectFromJson(this.getEntity(), x));
+                });
+                return res;
+            }
+            return result;
+        });
     }
 
     public bulkPutMany(objIds: Array<any>, obj: any) {

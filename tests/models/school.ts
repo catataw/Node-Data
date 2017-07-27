@@ -11,7 +11,7 @@ export class school extends baseModel {
     @field()
     age: string;
 
-    @onetomany({ rel: 'teacher', itemType: teacher, embedded: true, persist: true, eagerLoading: false, deleteCascade: true, properties: ['name'], cascadeType: { cascadePut: true }})
+    @onetomany({ rel: 'teacher', itemType: teacher, embedded: true, persist: true, eagerLoading: false, deleteCascade: true,  cascadeType: { cascadePut: true }})
     //@onetomany({ rel: 'teacher', itemType: teacher, embedded: true, persist: true, eagerLoading: false})
     teachers: Array<teacher>;
 }

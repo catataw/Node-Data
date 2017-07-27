@@ -21,7 +21,7 @@ import {CrudEntity} from "../core/dynamic/crud.entity";
  * @param model
  * @param objArr
  */
-export function bulkPost(model: Mongoose.Model<any>, objArr: Array<any>): Q.Promise<any> {
+export function bulkPost(model: Mongoose.Model<any>, objArr: Array<any>, batchSize?: number): Q.Promise<any> {
 
     if (!objArr) {
         return Q.when([]);
@@ -60,22 +60,41 @@ export function bulkPost(model: Mongoose.Model<any>, objArr: Array<any>): Q.Prom
 
             });
 
-
-
-            let newModel = model;
+            let oldModel = model;
             let obj = objArr[0];
             if (obj.getCollectionName) {
-                newModel = getDbSpecifcModel(obj.getCollectionName(), model.schema);
+                model = getDbSpecifcModel(obj.getCollectionName(), oldModel.schema);
             }
 
-            return Q.nbind(newModel.create, newModel)(clonedModels).then(result => {
-                return Enumerable.from(result).select(x => Utils.toObject(x)).toArray();
-            })
-                .catch(error => {
-                    winstonLog.logError(`Error in bulkPost ${error}`);
-                    return Q.reject(error);
-                })
+            var asyncCalls = [];
+            if (!batchSize) {
+                asyncCalls.push(executeBulk(model, clonedModels));
+            } else {
+                
+                for (let curCount = 0; curCount < clonedModels.length; curCount += batchSize) {
+                    asyncCalls.push(executeBulk(model, clonedModels.slice(curCount, curCount + batchSize)))
+                }
+            }
+            return Q.allSettled(asyncCalls).then(suces => {
+                let values = [];
+                Enumerable.from(suces).forEach((x) => {
+                    values = values.concat(x.value);
+                });
+                return values;
+            }).catch(er => {
+                throw er;
+            });
         });
+}
+
+
+function executeBulk(model, arrayOfDbModels) {
+    return Q.nbind(model.collection.insertMany, model.collection)(arrayOfDbModels).then((result: any) => {
+        result = result && result.ops;
+        return result;
+    }).catch(err => {
+        throw err;
+    });
 }
 
 /**
@@ -119,7 +138,7 @@ export function bulkPut(model: Mongoose.Model<any>, objArr: Array<CrudEntity>): 
 
                 //update stack here
                 objects = objects.map((dbObj) => {
-                    let formermapObj = objArr.filter((objFormer: CrudEntity) => {
+                    let formermapObj:any = objArr.filter((objFormer: CrudEntity) => {
                         return objFormer._id.toString() == dbObj._id.toString()
                     });
 
@@ -132,7 +151,16 @@ export function bulkPut(model: Mongoose.Model<any>, objArr: Array<CrudEntity>): 
                 });
 
                 return mongooseHelper.updateParent(model, objects).then(res => {
-                    return objects;
+                    asyncCalls = [];
+                    var resultObject = [];
+                    Enumerable.from(objects).forEach(x => {
+                        asyncCalls.push(mongooseHelper.fetchEagerLoadingProperties(model, x).then(r => {
+                            resultObject.push(r);
+                        }));
+                    });
+                    return Q.allSettled(asyncCalls).then(final => {
+                        return resultObject;
+                    });
                 });
             });
         }).catch(error => {
@@ -208,7 +236,16 @@ export function bulkPatch(model: Mongoose.Model<any>, objArr: Array<CrudEntity>)
                 });
 
                 return mongooseHelper.updateParent(model, objects).then(res => {
-                    return objects;
+                    asyncCalls = [];
+                    var resultObject = [];
+                    Enumerable.from(objects).forEach(x => {
+                        asyncCalls.push(mongooseHelper.fetchEagerLoadingProperties(model, x).then(r => {
+                            resultObject.push(r);
+                        }));
+                    });
+                    return Q.allSettled(asyncCalls).then(final => {
+                        return resultObject;
+                    });
                 });
             });
         }).catch(error => {

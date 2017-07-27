@@ -5,6 +5,7 @@ import {Types} from 'mongoose';
 import * as Enumerable from 'linq';
 import {repoFromModel} from "./model-entity";
 import {MetaUtils} from "../metadata/utils";
+import { Decorators} from '../constants/decorators';
 import Q = require('q');
 import {Decorators} from '../../core/constants/decorators';
 export class CrudEntity {

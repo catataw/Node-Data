@@ -20,11 +20,7 @@ export class city extends baseModel {
     @onetomany({ rel: 'school', itemType: school, embedded: true, persist: true, eagerLoading: false, deleteCascade: true, cascadeType: { cascadePut: true } })
     //@onetomany({ rel: 'school', itemType: school, embedded: true, persist: true, eagerLoading: false})
     schools: Array<school>;
-
-
-    @manytoone
-
-
+    
     save()
     {
         //return new Promise((resolved, reject) => {

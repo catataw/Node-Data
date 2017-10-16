@@ -9,7 +9,10 @@ import {onetomany, manytoone, manytomany, onetoone} from '../../core/decorators'
 @document({ name: 'city', strict: Strict.false })
 export class city extends baseModel {
     @field()
-    age: string;
+    age: number;
+
+    @field()
+    cityName: Object;
 
     @field()
     createdDate: string;
@@ -20,6 +23,9 @@ export class city extends baseModel {
     @onetomany({ rel: 'school', itemType: school, embedded: true, persist: true, eagerLoading: false, deleteCascade: true, properties: ['name'] })
     //@onetomany({ rel: 'school', itemType: school, embedded: true, persist: true, eagerLoading: false})
     schools: Array<school>;
+
+    @field()
+    sch: school;
 }
 
 export default city;

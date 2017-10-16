@@ -159,10 +159,12 @@ function executeBulkPut(model: Mongoose.Model<any>, objArr: Array<any>, donotLoa
                 delete result[transientProps[prop].propertyKey];
             }
             var updatedProps;
-
+            // updated props compare with __changedData and __dataHolder
             if (updatePropsReq) {
                 updatedProps = Utils.getUpdatedProps(result, EntityChange.put);
             }
+            delete result.__dataHolder;
+            delete result.__changedDataHolder;
             let isDecoratorPresent = isDecoratorApplied(model, Decorators.OPTIMISTICLOCK, "put");
             let query: Object = { _id: objectId };
             if (isDecoratorPresent === true) {

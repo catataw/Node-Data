@@ -71,6 +71,9 @@ export function getUpdatedProps(obj: any, type: EntityChange, jsonMapProp?: Arra
     var unset = {};
     var s = false, u = false, p = false;
     for (var i in obj) {
+        if (i === "__dataHolder" || i === "__changedDataHolder") {
+            continue;
+        }
         if (obj[i] == undefined || obj[i] == null || obj[i] == undefined && obj[i] == '' || (obj[i] instanceof Array && obj[i] == []) || obj[i] == {}) {
             unset[i] = '';
             u = true;
@@ -96,6 +99,8 @@ export function getUpdatedProps(obj: any, type: EntityChange, jsonMapProp?: Arra
             }
         }
     }
+    delete obj.__dataHolder;
+    obj.__changedDataHolder = undefined;
 
     var json = {};
     if (s) {

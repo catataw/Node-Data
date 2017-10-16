@@ -239,7 +239,7 @@ export class AuthorizationRepository extends DynamicRepository {
         this.logEntityInfo("put", obj);
         return this.preUpdate(resultEntityActionObj)
             .then((params: EntityActionParam) => {
-                return super.put(id, params.newPersistentEntity).then((updatedDbObj: any) => {
+                return super.put(id, params.newPersistentEntity.__changedDataHolder).then((updatedDbObj: any) => {
                     resultEntityActionObj.newPersistentEntity = updatedDbObj;
                     return this.postUpdate(resultEntityActionObj).then((updatedEntity: EntityActionParam) => {
                         return Q.when(updatedEntity.newPersistentEntity);

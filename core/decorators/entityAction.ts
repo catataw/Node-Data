@@ -278,7 +278,7 @@ function mergeProperties(dbEntity?: any, entity?: any, mergedEntity?: any): Enti
         mergedEntity = <any>{};
     }
 
-    let tempMergedEntity = {};
+    let tempMergedEntity = <any>{};
     if (dbEntity) {
         for (var prop in dbEntity) {
             tempMergedEntity[prop] = dbEntity[prop];
@@ -290,25 +290,156 @@ function mergeProperties(dbEntity?: any, entity?: any, mergedEntity?: any): Enti
             tempMergedEntity[prop] = entity[prop];
         }
     }
+    if (!entity.isChild) {
+        mergedEntity.__changedDataHolder = {};
+        mergedEntity.__dataHolder = {};
+    }
 
     if (tempMergedEntity && (tempMergedEntity instanceof Object && !(tempMergedEntity instanceof Types.ObjectId))) {
 
         for (var prop in tempMergedEntity) {
-            if (typeof tempMergedEntity[prop] == "Object" && typeof mergedEntity[prop] == "Object") {
-                mergedEntity[prop] = this.mergeProperties(mergedEntity[prop], tempMergedEntity[prop]);
+            if (!Array.isArray(tempMergedEntity[prop]) && typeof tempMergedEntity[prop] == "object" && typeof dbEntity[prop] == "object") {
+                tempMergedEntity[prop].isChild = true;
+                let newPropName = prop;
+                if (tempMergedEntity.propName) {
+                    newPropName = tempMergedEntity.propName + "." + prop;
+                }
+                tempMergedEntity[prop].propName = newPropName;
+                mergedEntity[prop] = mergeProperties(mergedEntity[prop], tempMergedEntity[prop],
+                    { __changedDataHolder: mergedEntity.__changedDataHolder, __dataHolder: mergedEntity.__dataHolder });
             }
             else {
                 if (tempMergedEntity[prop] === undefined) {
                     delete mergedEntity[prop];
                 }
                 else {
-                    mergedEntity[prop] = tempMergedEntity[prop];
+                    mergedEntity[prop] = tempMergedEntity[prop];                
+                }
+                
+                if (typeof tempMergedEntity[prop] == "object") {
+                    mergedEntity.__changedDataHolder[prop] = mergedEntity[prop];
                 }
             }
+            let rootProp = undefined;
+            if (entity.isChild) {
+                rootProp = entity.propName;
+            }
+            
+            fillDataHolder(prop, mergedEntity[prop], rootProp, mergedEntity.__dataHolder);
+            subscribeGetterSetter(mergedEntity, prop, rootProp, mergedEntity.__dataHolder, mergedEntity.__changedDataHolder); // for new property add in model will not be subscribed its getter and setter            
         }
+    }
+    if (entity.isChild) {
+        delete entity.isChild;
+        delete entity.propName;
+        delete mergedEntity.__changedDataHolder;
+        delete mergedEntity.isChild;
+        delete mergedEntity.propName;
+        return mergedEntity;
     }
 
     mergedEntity[ConstantKeys.FullyLoaded] = true;
     return { inputEntity: entity, oldPersistentEntity: dbEntity, newPersistentEntity: mergedEntity };
 }
 
+function subscribeGetterSetter(modelObj: any, prop: any, propNameFullPath: any, dataHolder: any, changedDataHolder: any) {
+    //if (!modelObj.__changedDataHolder) {
+    //    modelObj.__changedDataHolder = {};
+    //}
+    Object.defineProperty(modelObj, prop, {
+        get: function () {
+            //return dataHolder[prop];
+            return getDataFromDataHolder(prop, propNameFullPath, dataHolder);
+        },
+        set: function (new_value) {
+            dataHolder[prop] = new_value;
+            // set property for child element 
+            if (propNameFullPath) {
+                let qualifiedObj = nestedPropInstanceGenerator(changedDataHolder, propNameFullPath);
+                qualifiedObj[prop] = new_value;
+                //!changedDataHolder[propNameFullPath] && (changedDataHolder[propNameFullPath] = {})
+                //changedDataHolder[propNameFullPath][prop] = new_value;
+            }
+            // set property for root element 
+            else {
+                changedDataHolder[prop] = new_value;
+            }
+        }
+    });
+}
+
+/**
+ * 
+ * @param obj
+ * @param path - comma separated string property names
+ */
+function nestedPropInstanceGenerator(obj: any, path: string) {
+    if (!path) {
+        return {};
+    }
+    let propArry = path.split(".");
+    let tempRef = obj;
+    propArry.forEach(prop => {
+        let objRef = tempRef;
+        tempRef = tempRef[prop];
+        if (tempRef) {
+            return;
+        }
+        tempRef = objRef[prop] = {};
+    });
+
+    return tempRef;
+
+
+    //const set = (obj, path, val) => {
+    //    const keys = path.split('.');
+    //    const lastKey = keys.pop();
+    //    const lastObj = keys.reduce((obj, key) =>
+    //        obj[key] = obj[key] || {},
+    //        obj);
+    //    lastObj[lastKey] = val;
+    //};
+}
+
+function nestedPropGetter(obj: any, path: string) {
+    if (!path) {
+        return {};
+    }
+    let propArry = path.split(".");
+    let tempRef = obj;
+    for (let i in propArry) {
+        let prop = propArry[i];
+        let objRef = tempRef;
+        tempRef = tempRef[prop];
+        if (!tempRef) {
+            break;
+        }
+    }
+
+    return tempRef;
+}
+
+
+function fillDataHolder(prop: any, value: any, propNameFullPath: any, dataHolder: any) {
+    if (["isChild", "propName"].indexOf(prop) > -1) {
+        return;
+    }
+    // set property for child element 
+    if (propNameFullPath) {
+        dataHolder[propNameFullPath + "." + prop] = value;
+        //!changedDataHolder[propNameFullPath] && (changedDataHolder[propNameFullPath] = {})
+        //changedDataHolder[propNameFullPath][prop] = new_value;
+    }
+    // set property for root element 
+    else {
+        dataHolder[prop] = value;
+    }
+}
+
+function getDataFromDataHolder(prop: any, propNameFullPath: any, dataHolder: any) {
+    if (propNameFullPath) {
+        return dataHolder[propNameFullPath + "." + prop];
+    }
+    return dataHolder[prop];
+
+}

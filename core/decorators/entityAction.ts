@@ -1,6 +1,5 @@
 import { MetaUtils } from "../metadata/utils";
 import { Decorators } from '../constants/decorators';
-import { ConstantKeys } from '../constants';
 import { DecoratorType } from '../enums/decorator-type';
 import { IPreauthorizeParams } from './interfaces/preauthorize-params';
 import { PrincipalContext } from '../../security/auth/principalContext';
@@ -13,8 +12,6 @@ import { RepoActions } from '../enums/repo-actions-enum';
 import {IDynamicRepository, DynamicRepository} from '../dynamic/dynamic-repository';
 import * as Enumerable from 'linq';
 import Q = require('q');
-import { Types } from "mongoose";
-import * as utils from '../../mongoose/utils';
 
 /**
  * Provides you three states (new, old, merged) for an entity as parameters on which
@@ -53,7 +50,7 @@ export function entityAction(params: IPreauthorizeParams): any {
 
         descriptor.value = function () {
             var anonymous = MetaUtils.getMetaData(target, Decorators.ALLOWANONYMOUS, propertyKey);
-            if (anonymous) return originalMethod.call(this, ...arguments);
+            if (anonymous) return originalMethod.apply(this, arguments);
             let args = [];
             args = Array.apply(null, arguments);
 
@@ -67,10 +64,8 @@ export function entityAction(params: IPreauthorizeParams): any {
                     // Converting Repo method names into uppercase as check with original method name is in uppercase.
                     // This is require othewise it will go in else condition and some of the entities will visible user without access e.g. questionnaire not assigned ot user.
                     findActions = findActions.map(methodName => methodName.toUpperCase());
-                    if (findActions.indexOf(originalMethod.name.toUpperCase()) >= 0) {
-                        console.log("CanRead entity Security " + this.path);
-                        return PostFilterService.postFilter(fullyQualifiedEntities, params).then(result => {
-                            console.log("CanRead entity Security End " + this.path);
+                if (findActions.indexOf(originalMethod.name.toUpperCase()) >= 0) {
+                    return PostFilterService.postFilter(fullyQualifiedEntities, params).then(result => {
                         if (!result) {
                             fullyQualifiedEntities = null;
                         }
@@ -81,30 +76,28 @@ export function entityAction(params: IPreauthorizeParams): any {
                         }
 
                         if (args.length) {
-                            args[args.length] = fullyQualifiedEntities;
+                            args[args.length - 1] = fullyQualifiedEntities;
                         }
                         else {
                             args[0] = fullyQualifiedEntities;
                         }
-                        return originalMethod.call(this, ...args);
+                        return originalMethod.apply(this, args);
                     });
                 }
                 else {
-                    console.log("CanSave entity Security" + this.path);
                     return PreAuthService.isPreAuthenticated([fullyQualifiedEntities], params, propertyKey).then(isAllowed => {
-                        console.log("CanSave entity Security End" + this.path);
                         //req.body = fullyQualifiedEntities;
                         if (isAllowed) {
                             // for delete, post action no need to save merged entity else save merged entity to db
-                            //if (originalMethod.name.toUpperCase() != RepoActions.delete.toUpperCase()) {
+                            if (originalMethod.name.toUpperCase() != RepoActions.delete.toUpperCase()) {
                                 if (args.length) {
-                                    args[args.length] = fullyQualifiedEntities;
+                                    args[args.length - 1] = fullyQualifiedEntities;
                                 }
                                 else {
                                     args[0] = fullyQualifiedEntities;
                                 }
-                            //}
-                            return originalMethod.call(this, ...args);
+                            }
+                            return originalMethod.apply(this, args);
                             //return originalMethod.apply(this, [fullyQualifiedEntities]);
                         }
                         else {
@@ -132,7 +125,7 @@ function mergeTask(args: any, method: any): Q.Promise<any> {
     switch (method.name.toUpperCase()) {
 
         case RepoActions.findOne.toUpperCase():
-            prom = rootRepo.findOne(args[0], args[1]).then(res => {
+            prom = rootRepo.findOne(args[0]).then(res => {
                 let mergedEntity = InstanceService.getInstance(this.getEntity(), null, res);
                 return mergeProperties(res, undefined, mergedEntity);
             });
@@ -149,13 +142,7 @@ function mergeTask(args: any, method: any): Q.Promise<any> {
                 return mergeEntities(dbEntities, undefined, mergedEntities);
             });
             break;
-        case RepoActions.findMany.toLocaleUpperCase():
-            prom = rootRepo.findMany(args[0]).then((dbEntities: Array<any>) => {
-                let mergedEntities = dbEntities.map(x => InstanceService.getInstance(this.getEntity(), null, x));
-                return mergeEntities(dbEntities, undefined, mergedEntities);
-            });
-            break;
-        // TODO: Need to write code for all remaining get entity(s) actions
+        // TODO: Need to write code for all remaining get entity(s) actions 
 
         case RepoActions.post.toUpperCase():
             // do nothing
@@ -176,7 +163,7 @@ function mergeTask(args: any, method: any): Q.Promise<any> {
         case RepoActions.delete.toUpperCase():
             // fetch single object 
             prom = rootRepo.findMany([args[0]], true).then(res => {
-                return mergeProperties(res[0], args[0], res[0]);
+                return mergeProperties(res[0], undefined, res[0]);
             });
             break;
 
@@ -190,16 +177,11 @@ function mergeTask(args: any, method: any): Q.Promise<any> {
         case RepoActions.bulkPut.toUpperCase():
             var ids = Enumerable.from(args[0]).select(x => x['_id'].toString()).toArray();
             let mergeEntities1 = [];
-            console.log("entity action findmany instance service start " + this.path);
             args[0].forEach(x => {
                 mergeEntities1.push(InstanceService.getInstance(this.getEntity(), null, x));
             });
-            console.log("entity action findmany start " + this.path);
             prom = rootRepo.findMany(ids, true).then(dbEntities => {
-                console.log("entity action merge entity start " + this.path);
-                let retval = mergeEntities(dbEntities, args[0], mergeEntities1);
-                console.log("entity action merge entity end " + this.path);
-                return retval;
+                return mergeEntities(dbEntities, args[0], mergeEntities1);
             });
             break;
         case RepoActions.bulkDel.toUpperCase():
@@ -227,15 +209,6 @@ function mergeTask(args: any, method: any): Q.Promise<any> {
             break;
     }
     return prom.then(res => {
-        // set fully loaded attribute to root element
-        if (res instanceof Array) {
-            res.forEach(x => {
-                res[ConstantKeys.FullyLoaded] = true;
-            });
-        }
-        else {
-            res[ConstantKeys.FullyLoaded] = true;
-        }
         return res;
     }).catch(exc => {
         console.log(exc);
@@ -245,30 +218,19 @@ function mergeTask(args: any, method: any): Q.Promise<any> {
 
 function mergeEntities(dbEntities, entities?, mergeEntities1?: Array<any>) {
     var res = [];
-    if (!entities && dbEntities) {
+    if (!entities) {
         dbEntities.forEach(x => {
             res.push(mergeProperties(x, undefined, x));
         });
         return res;
     }
-    let dbEntityKeyVal = {};
-    let megredEntityKeyVal = {};
-    if (dbEntities) {
-        dbEntities.forEach(dbE => dbEntityKeyVal[dbE._id] = dbE);
-    }
-
-    if (mergeEntities1) {
-        mergeEntities1.forEach(mgE => megredEntityKeyVal[mgE._id] = mgE);
-    }
-
-    entities.forEach(entity => {
-
+    Enumerable.from(entities).forEach(entity => {
         var dbEntity, mergeEntity;
         if (dbEntities) {
-            dbEntity = dbEntityKeyVal[entity['_id']];
+            dbEntity = Enumerable.from(dbEntities).where(x => x['_id'].toString() == entity['_id'].toString()).firstOrDefault();
         }
         if (mergeEntities1) {
-            mergeEntity = megredEntityKeyVal[entity['_id']];
+            mergeEntity = Enumerable.from(mergeEntities1).where(x => x['_id'].toString() == entity['_id'].toString()).firstOrDefault();
         }
 
         res.push(mergeProperties(dbEntity, entity, mergeEntity));
@@ -282,37 +244,23 @@ function mergeProperties(dbEntity?: any, entity?: any, mergedEntity?: any): Enti
         mergedEntity = <any>{};
     }
 
-    let tempMergedEntity = {};
     if (dbEntity) {
         for (var prop in dbEntity) {
-            tempMergedEntity[prop] = dbEntity[prop];
+            mergedEntity[prop] = dbEntity[prop];
         }
-
     }
+
     if (entity) {
+
         for (var prop in entity) {
-            tempMergedEntity[prop] = entity[prop];
-        }
-    }
-
-    if (tempMergedEntity && (tempMergedEntity instanceof Object && !(tempMergedEntity instanceof Types.ObjectId))) {
-
-        for (var prop in tempMergedEntity) {
-            if (typeof tempMergedEntity[prop] == "Object" && typeof mergedEntity[prop] == "Object") {
-                mergedEntity[prop] = this.mergeProperties(mergedEntity[prop], tempMergedEntity[prop]);
+            if (typeof entity[prop] == "Object" && typeof mergedEntity[prop] == "Object") {
+                mergedEntity[prop] = this.mergeProperties(mergedEntity[prop], entity[prop]);
             }
             else {
-                if (tempMergedEntity[prop] === undefined) {
-                    delete mergedEntity[prop];
-                }
-                else {
-                    mergedEntity[prop] = tempMergedEntity[prop];
-                }
+                mergedEntity[prop] = entity[prop];
             }
         }
     }
-
-    mergedEntity[ConstantKeys.FullyLoaded] = true;
     return { inputEntity: entity, oldPersistentEntity: dbEntity, newPersistentEntity: mergedEntity };
 }
 

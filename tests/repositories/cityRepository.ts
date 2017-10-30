@@ -4,11 +4,4 @@ import {DynamicRepository} from '../../core/dynamic/dynamic-repository';
 
 @repository({ path: 'city', model: city })
 export default class CityRepository extends DynamicRepository {
-
-    dotest() {
-        return [new city()].bulkPost();
-    }
-
-    findByName() {
-    }
 }

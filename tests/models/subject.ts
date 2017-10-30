@@ -4,7 +4,7 @@ import {field, document} from '../../mongoose/decorators';
 import {Strict} from '../../mongoose/enums/';
 import {baseModel} from './baseModel';
 
-@document({ name: 'subject', strict: Strict.false })
+@document({ name: 'subject', strict: Strict.throw })
 export class subject extends baseModel {
     constructor(object?: any) {
         super(object);

@@ -6,18 +6,17 @@ export interface IEntityService {
     findWhere(model: any, query, selectedFields?: Array<string>, queryOptions?: QueryOptions, toLoadChilds?: boolean): Q.Promise<any>;
     countWhere(model: any, query): Q.Promise<any>;
     distinctWhere(model: any, query): Q.Promise<any>;
-    findOne(model: any, id, donotLoadChilds?: boolean);
+    findOne(model: any, id);
     findByField(model: any, fieldName, value): Q.Promise<any>;
     findMany(model: any, ids: Array<any>,toLoadEmbeddedChilds?:boolean);
     findChild(model: any, id, prop);
-    bulkPost(model: any, objArr: Array<any>, batchSize?: number): Q.Promise<any>;
-    bulkPut(model: any, objArr: Array<any>, batchSize?: number, donotLoadChilds?: boolean): Q.Promise<any>;
-    bulkPatch(model: any, objArr: Array<any>): Q.Promise<any>;
+    bulkPost(model: any, objArr: Array<any>): Q.Promise<any>;
+    bulkPut(model: any, objArr: Array<any>): Q.Promise<any>;
     bulkPutMany(model: any, objIds: Array<any>, obj: any): Q.Promise<any>;
     bulkDel(model: any, objArr: Array<any>): Q.Promise<any>;
     post(model: any, obj: any): Q.Promise<any>;
     put(model: any, id: any, obj: any): Q.Promise<any>;
     del(model: any, id: any): Q.Promise<any>;
     patch(model: any, id: any, obj): Q.Promise<any>;
-    getModel(repoPath: string, dynamicName?: string);
+    getModel(repoPath: string);
 }

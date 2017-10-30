@@ -1,19 +1,114 @@
 {
-  "name": "nodedata",
-  "version": "1.0.0-dev.170905063712",
-  "description": "Node Data",
-  "main": "server.js",
-  "scripts": {
-    "cover": "node_modules/.bin/istanbul cover node_modules/jasmine/bin/jasmine.js -x *.spec.js",
-    "ci": "gulp ts && gulp ci-dev && npm test && npm publish",
-    "pub": "gulp ts && npm publish",
-    "start": "node server.js",
-    "test": "jasmine",
-    "testone": "jasmine ",
-    "tsd": ""
+  "_args": [
+    [
+      {
+        "raw": "nodedata@latest",
+        "scope": null,
+        "escapedName": "nodedata",
+        "name": "nodedata",
+        "rawSpec": "latest",
+        "spec": "latest",
+        "type": "tag"
+      },
+      "C:\\socialguru\\socialguruapi\\realSociableAPI"
+    ]
+  ],
+  "_from": "nodedata@latest",
+  "_id": "nodedata@1.0.0-dev.170609092854",
+  "_inCache": true,
+  "_location": "/nodedata",
+  "_nodeVersion": "6.9.5",
+  "_npmOperationalInternal": {
+    "host": "s3://npm-registry-packages",
+    "tmp": "tmp/nodedata-1.0.0-dev.170609092854.tgz_1497000521252_0.13732167333364487"
   },
-  "author": "pratikv",
-  "license": "MIT",
+  "_npmUser": {
+    "name": "mayank.agrawal",
+    "email": "mynkgrwl22@gmail.com"
+  },
+  "_npmVersion": "3.10.10",
+  "_phantomChildren": {
+    "archy": "1.0.0",
+    "array-flatten": "1.1.1",
+    "async": "2.1.4",
+    "aws-sign2": "0.6.0",
+    "aws4": "1.6.0",
+    "bl": "1.0.3",
+    "caseless": "0.11.0",
+    "chalk": "1.1.3",
+    "colors": "1.1.2",
+    "combined-stream": "1.0.5",
+    "content-type": "1.0.2",
+    "cookie-signature": "1.0.6",
+    "cycle": "1.0.3",
+    "depd": "1.1.0",
+    "deprecated": "0.0.1",
+    "etag": "1.7.0",
+    "extend": "3.0.0",
+    "eyes": "0.1.8",
+    "forever-agent": "0.6.1",
+    "forwarded": "0.1.0",
+    "fresh": "0.3.0",
+    "gulp-util": "3.0.8",
+    "har-validator": "2.0.6",
+    "hawk": "3.1.3",
+    "http-signature": "1.1.1",
+    "inflight": "1.0.6",
+    "inherits": "2.0.3",
+    "is-typedarray": "1.0.0",
+    "isstream": "0.1.2",
+    "json-stringify-safe": "5.0.1",
+    "liftoff": "2.3.0",
+    "methods": "1.1.2",
+    "mime": "1.3.4",
+    "mime-types": "2.1.14",
+    "minimatch": "2.0.10",
+    "minimist": "1.2.0",
+    "node-uuid": "1.4.7",
+    "oauth-sign": "0.8.2",
+    "on-finished": "2.3.0",
+    "once": "1.3.3",
+    "optimist": "0.6.1",
+    "orchestrator": "0.3.8",
+    "parseurl": "1.3.1",
+    "passport-strategy": "1.0.0",
+    "path-is-absolute": "1.0.1",
+    "path-to-regexp": "0.1.7",
+    "pause": "0.0.1",
+    "pkginfo": "0.3.1",
+    "pretty-hrtime": "1.0.3",
+    "stack-trace": "0.0.9",
+    "statuses": "1.3.1",
+    "stringstream": "0.0.5",
+    "tildify": "1.2.0",
+    "tunnel-agent": "0.4.3",
+    "type-is": "1.6.14",
+    "underscore.string": "3.1.1",
+    "unpipe": "1.0.0",
+    "utils-merge": "1.0.0",
+    "v8flags": "2.0.11",
+    "vinyl-fs": "0.3.14"
+  },
+  "_requested": {
+    "raw": "nodedata@latest",
+    "scope": null,
+    "escapedName": "nodedata",
+    "name": "nodedata",
+    "rawSpec": "latest",
+    "spec": "latest",
+    "type": "tag"
+  },
+  "_requiredBy": [
+    "/"
+  ],
+  "_resolved": "https://registry.npmjs.org/nodedata/-/nodedata-1.0.0-dev.170609092854.tgz",
+  "_shasum": "715bf7d3cd4f2e5e6d9638c2584d4455620fbc35",
+  "_shrinkwrap": null,
+  "_spec": "nodedata@latest",
+  "_where": "C:\\socialguru\\socialguruapi\\realSociableAPI",
+  "author": {
+    "name": "pratikv"
+  },
   "dependencies": {
     "acl": "0.4.9",
     "bcrypt-nodejs": "0.0.3",
@@ -29,13 +124,12 @@
     "gulp": "3.9.0",
     "jsonwebtoken": "5.7.0",
     "linq": "3.0.5",
-    "mongodb": "https://github.com/Anujarya300/node-mongodb-native/tarball/2.2",
+    "mongodb": "2.1.3",
     "mongoosastic": "4.0.2",
-    "mongoose": "https://github.com/ratneshsinghparihar/mongoose/tarball/4.12",
+    "mongoose": "4.0.6",
     "morgan": "1.6.1",
     "multer": "^1.2.0",
     "noogger": "0.1.3",
-    "object-hash": "1.1.8",
     "passport": "0.2.2",
     "passport-facebook": "2.1.0",
     "passport-jwt": "2.0.0",
@@ -45,13 +139,12 @@
     "reflect-metadata": "0.1.3",
     "request": "2.69.0",
     "sequelize": "3.23.2",
-    "stack-trace": "0.0.10",
     "tedious": "1.14.0",
     "tslint": "3.6.0",
     "typescript": "2.2.1",
-    "uuid": "3.1.0",
     "winston": "2.2.0"
   },
+  "description": "Node Data",
   "devDependencies": {
     "gulp-ignore": "2.0.1",
     "gulp-livereload": "3.8.1",
@@ -65,5 +158,48 @@
     "jasmine-node": "1.14.5",
     "supertest": "1.2.0",
     "tslint-microsoft-contrib": "2.0.2"
-  }
+  },
+  "directories": {},
+  "dist": {
+    "shasum": "715bf7d3cd4f2e5e6d9638c2584d4455620fbc35",
+    "tarball": "https://registry.npmjs.org/nodedata/-/nodedata-1.0.0-dev.170609092854.tgz"
+  },
+  "gitHead": "b5f4b1eb3f186fb70745d8e43d2086c527999168",
+  "license": "MIT",
+  "main": "server.js",
+  "maintainers": [
+    {
+      "name": "anuj.npm.user",
+      "email": "anujrana300@gmail.com"
+    },
+    {
+      "name": "asish.nitr",
+      "email": "asish.nitr@gmail.com"
+    },
+    {
+      "name": "delta-xz",
+      "email": "hariadh11@gmail.com"
+    },
+    {
+      "name": "mayank.agrawal",
+      "email": "mynkgrwl22@gmail.com"
+    },
+    {
+      "name": "pratikv",
+      "email": "vakilpratik@gmail.com"
+    }
+  ],
+  "name": "nodedata",
+  "optionalDependencies": {},
+  "readme": "ERROR: No README data found!",
+  "scripts": {
+    "ci": "gulp ts && gulp ci-dev && npm test && npm publish",
+    "cover": "istanbul cover node_modules/jasmine/bin/jasmine.js -x *.spec.js",
+    "pub": "gulp ts && npm publish",
+    "start": "node server.js",
+    "test": "jasmine",
+    "testone": "jasmine ",
+    "tsd": ""
+  },
+  "version": "1.0.0-dev.170609092854"
 }

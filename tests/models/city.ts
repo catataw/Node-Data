@@ -6,13 +6,10 @@ import {baseModel} from './baseModel';
 import {school} from './school';
 import {onetomany, manytoone, manytomany, onetoone} from '../../core/decorators';
 
-@document({ name: 'city', strict: Strict.false })
+@document({ name: 'city', strict: Strict.throw })
 export class city extends baseModel {
     @field()
     age: string;
-
-    @field({ searchIndex: true })
-    name: string;
 
     @field()
     createdDate: string;

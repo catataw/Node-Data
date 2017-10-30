@@ -72,7 +72,7 @@ class SequelizeService implements IEntityService {
         this._relationCollection.push(relationToDictionary);
     }
 
-    getModel(repoPath: string, dynamicName?: string) {
+    getModel(repoPath: string) {
         try {
             var schemaNamefromPathRepomap = pathRepoMap[repoPath].schemaName;
             return this._schemaCollection[schemaNamefromPathRepomap];
@@ -81,8 +81,8 @@ class SequelizeService implements IEntityService {
         }
     }
 
-    bulkPost(repoPath: string, objArr: Array<any>, batchSize?: number): Q.Promise<any> {
-        return this.getModel(repoPath).bulkCreate(objArr, batchSize);
+    bulkPost(repoPath: string, objArr: Array<any>): Q.Promise<any> {
+        return this.getModel(repoPath).bulkCreate(objArr);
     }
 
     bulkPutMany(repoPath: string, objIds: Array<any>, obj: any): Q.Promise<any> {
@@ -93,11 +93,7 @@ class SequelizeService implements IEntityService {
         return this.getModel(repoPath).destroy({ where: { id: objArr } });
     }
 
-    bulkPut(repoPath: string, objArr: Array<any>,batchSize?: number): Q.Promise<any> {
-        return this.getModel(repoPath).bulkUpdate(objArr, batchSize);
-    }
-
-    bulkPatch(repoPath: string, objArr: Array<any>): Q.Promise<any> {
+    bulkPut(repoPath: string, objArr: Array<any>): Q.Promise<any> {
         return this.getModel(repoPath).bulkUpdate(objArr);
     }
 

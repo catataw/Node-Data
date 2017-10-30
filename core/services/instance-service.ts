@@ -13,16 +13,16 @@ export class InstanceService {
                 param[meta.propertyKey] = id;
             }
         }
-        //InstanceService.initProperties(entity, true, param);
+        InstanceService.initProperties(entity, true, param);
         return InstanceService.getInstanceFromType(entity, true, param);
     }
 
     static getObjectFromJson(entity: any, param?: any) {
-        //InstanceService.initProperties(entity, true, param);
+        InstanceService.initProperties(entity, true, param);
         return InstanceService.getInstanceFromType(entity, true, param);
     }
 
-    public static getInstanceFromType(type: any, isNew: boolean, param?: any) {
+    private static getInstanceFromType(type: any, isNew: boolean, param?: any) {
         var t: (param) => void = type.constructor;
         return InstanceService.createObjectInstance(t, isNew, param);
     }

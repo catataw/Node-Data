@@ -12,7 +12,6 @@ import {InstanceService} from '../services/instance-service';
 import {MetaUtils} from "../metadata/utils";
 import {Decorators} from '../constants';
 import {QueryOptions} from '../interfaces/queryOptions';
-import * as utils from '../../mongoose/utils';
 
 
 var modelNameRepoModelMap: { [key: string]: IDynamicRepository } = {};
@@ -23,18 +22,17 @@ export function GetRepositoryForName(name: string): IDynamicRepository {
 
 export interface IDynamicRepository {
     getEntity();
-    getModel(dynamicName?: string);
+    getModel();
     modelName();
     getEntityType(): any;
     getRootRepo(): IDynamicRepository;
 
     bulkPost(objArr: Array<any>);
-    bulkPut(objArr: Array<any>, batchSize?: number, donotLoadChilds?: boolean);
-    bulkPatch(objArr: Array<any>);
+    bulkPut(objArr: Array<any>);
     bulkPutMany(objIds: Array<any>, obj: any);
     bulkDel(objArr: Array<any>);
 
-    findOne(id: any, donotLoadChilds?: boolean): Q.Promise<any>;
+    findOne(id: any): Q.Promise<any>;
     findMany(ids: Array<any>, toLoadEmbeddedChilds?: boolean): Q.Promise<any>;
     findAll(): Q.Promise<any>;
     //findWhere(query, selectedFields?: Array<any>): Q.Promise<any>;
@@ -48,8 +46,6 @@ export interface IDynamicRepository {
     post(obj: any): Q.Promise<any>;
     delete(id: any);
     patch(id: any, obj);
-    setRestResponse(obj: any);
-    getShardCondition();
 }
 
 export class DynamicRepository implements IDynamicRepository {
@@ -76,20 +72,20 @@ export class DynamicRepository implements IDynamicRepository {
         return getEntity(pathRepoMap[this.path].schemaName);
     }
 
-    public getModel(dynamicName?: string) {
-        return Utils.entityService(pathRepoMap[this.path].modelType).getModel(this.path, dynamicName);
+    public getModel() {
+        return Utils.entityService(pathRepoMap[this.path].modelType).getModel(pathRepoMap[this.path].schemaName);
     }
 
     public getRootRepo() {
         return this.rootLevelRep;
     }
 
-    public bulkPost(objArr: Array<any>, batchSize?: number) {
+   public bulkPost(objArr: Array<any>) {
         var objs = [];
         objArr.forEach(x => {
             objs.push(InstanceService.getInstance(this.getEntity(), null, x));
         });
-        return Utils.entityService(pathRepoMap[this.path].modelType).bulkPost(this.path, objs, batchSize).then(result => {
+        return Utils.entityService(pathRepoMap[this.path].modelType).bulkPost(this.path, objs).then(result => {
             if (result && result.length > 0) {
                 var res = [];
                 result.forEach(x => {
@@ -101,51 +97,17 @@ export class DynamicRepository implements IDynamicRepository {
         });
     }
 
-    public bulkPut(objArr: Array<any>, batchSize?: number, donotLoadChilds?: boolean) {
+    public bulkPut(objArr: Array<any>) {
         var objs = [];
         objArr.forEach(x => {
             objs.push(InstanceService.getInstance(this.getEntity(), null, x));
         });
-        return Utils.entityService(pathRepoMap[this.path].modelType).bulkPut(this.path, objs, batchSize, donotLoadChilds).then(result => {
-            if (result && result.length > 0) {
-                var res = [];
-                result.forEach(x => {
-                    res.push(InstanceService.getObjectFromJson(this.getEntity(), x));
-                });
-                return res;
-            }
-            return result;
-        });
-    }
-
-    public bulkPatch(objArr: Array<any>) {
-        var objs = [];
-        objArr.forEach(x => {
-            objs.push(InstanceService.getInstance(this.getEntity(), null, x));
-        });
-        return Utils.entityService(pathRepoMap[this.path].modelType).bulkPatch(this.path, objs).then(result => {
-            if (result && result.length > 0) {
-                var res = [];
-                result.forEach(x => {
-                    res.push(InstanceService.getObjectFromJson(this.getEntity(), x));
-                });
-                return res;
-            }
-            return result;
-        });
+        return Utils.entityService(pathRepoMap[this.path].modelType).bulkPut(this.path, objs);
     }
 
     public bulkPutMany(objIds: Array<any>, obj: any) {
-        return Utils.entityService(pathRepoMap[this.path].modelType).bulkPutMany(this.path, objIds, obj).then(result => {
-            if (result && result.length > 0) {
-                var res = [];
-                result.forEach(x => {
-                    res.push(InstanceService.getObjectFromJson(this.getEntity(), x));
-                });
-                return res;
-            }
-            return result;
-        });
+        obj = InstanceService.getInstance(this.getEntity(), null, obj);
+        return Utils.entityService(pathRepoMap[this.path].modelType).bulkPutMany(this.path, objIds, obj);
     }
 
     public bulkDel(objArr: Array<any>) {
@@ -215,16 +177,10 @@ export class DynamicRepository implements IDynamicRepository {
     }
 
 
-    public findOne(id, donotLoadChilds?: boolean) {
-        if (!utils.isBasonOrStringType(id)) {
-            let result = id;
-            return Q.when(InstanceService.getObjectFromJson(this.getEntity(), result));
-        }
-        else {
-            return Utils.entityService(pathRepoMap[this.path].modelType).findOne(this.path, id,donotLoadChilds).then(result => {
-                return InstanceService.getObjectFromJson(this.getEntity(), result);
-            });
-        }
+    public findOne(id) {
+        return Utils.entityService(pathRepoMap[this.path].modelType).findOne(this.path, id).then(result => {
+            return InstanceService.getObjectFromJson(this.getEntity(), result);
+        });
     }
 
     public findByField(fieldName, value): Q.Promise<any> {
@@ -232,29 +188,16 @@ export class DynamicRepository implements IDynamicRepository {
     }
 
     public findMany(ids: Array<any>, toLoadEmbeddedChilds?: boolean) {
-        if (!utils.isBasonOrStringType(ids[0])) {
-            let result = ids;
+        return Utils.entityService(pathRepoMap[this.path].modelType).findMany(this.path, ids, toLoadEmbeddedChilds).then(result => {
             if (result && result.length > 0) {
                 var res = [];
                 result.forEach(x => {
                     res.push(InstanceService.getObjectFromJson(this.getEntity(), x));
                 });
-                return Q.when(res);
+                return res;
             }
-            return Q.when(result);
-        }
-        else {
-            return Utils.entityService(pathRepoMap[this.path].modelType).findMany(this.path, ids, toLoadEmbeddedChilds).then(result => {
-                if (result && result.length > 0) {
-                    var res = [];
-                    result.forEach(x => {
-                        res.push(InstanceService.getObjectFromJson(this.getEntity(), x));
-                    });
-                    return res;
-                }
-                return result;
-            });
-        }
+            return result;
+        });
     }
 
     public findChild(id, prop): Q.Promise<any> {
@@ -288,9 +231,7 @@ export class DynamicRepository implements IDynamicRepository {
 
     public put(id: any, obj: any) {
         obj = InstanceService.getInstance(this.getEntity(), id, obj);
-        return Utils.entityService(pathRepoMap[this.path].modelType).put(this.path, id, obj).then(result => {
-            return InstanceService.getObjectFromJson(this.getEntity(), result);
-        });
+        return Utils.entityService(pathRepoMap[this.path].modelType).put(this.path, id, obj);
     }
         
     public delete(id: any) {
@@ -299,20 +240,7 @@ export class DynamicRepository implements IDynamicRepository {
 
     public patch(id: any, obj) {
         obj = InstanceService.getInstance(this.getEntity(), id, obj);
-        return Utils.entityService(pathRepoMap[this.path].modelType).patch(this.path, id, obj).then(result => {
-            return InstanceService.getObjectFromJson(this.getEntity(), result);
-        });
-    }
-    /**
- * Below interceptor is used to add/remove some of the properties of model before sending it to client.
- * e.g. samplDocument = {"id" : "23","name" : "test","companyName" : "com"}, here if we don't want to pass companyName to client then it can be removed in this interceptor.
- */
-    public setRestResponse(obj: any) {
-
+        return Utils.entityService(pathRepoMap[this.path].modelType).patch(this.path, id, obj);;
     }
 
-    // This function should return the additional shard condition which will be added in all the query to avoid the queries for cross sharding
-    public getShardCondition() {        
-        return null;
-    }
 }

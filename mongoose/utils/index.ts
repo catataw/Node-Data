@@ -7,8 +7,6 @@ import {getDbSpecifcModel} from '../db';
 import {pathRepoMap, getModel, getSchema} from '../../core/dynamic/model-entity';
 import {MetaData} from '../../core/metadata/metadata';
 import {Decorators} from '../../core/constants/decorators';
-import {Types} from "mongoose";
-import { ConstantKeys } from '../../core/constants';
 
 export function castToMongooseType(value, schemaType) {
     var newVal;
@@ -65,62 +63,26 @@ export function toObject(result): any {
  * @param obj
  * @param type
  */
-export function getUpdatedProps(obj: any, type: EntityChange, jsonMapProp?: Array<any>) {
+export function getUpdatedProps(obj: any, type: EntityChange) {
     var push = {};
     var set = {};
     var unset = {};
     var s = false, u = false, p = false;
-    let orginalDbEntity = obj.__dbEntity;
-    for (var key in obj) {
-        if (key === "__dbEntity") {
-            continue;
-        }
-        let curValue = obj[key];
-        if (curValue == undefined || curValue == null ||
-            curValue == undefined && curValue == '' ||
-            (curValue instanceof Array && !curValue.length ) ) {
-            if (orginalDbEntity && curValue === orginalDbEntity[key]) { // add json.parse(json.stringify)
-                continue;
-            }
-
-            if (curValue instanceof Array && orginalDbEntity && orginalDbEntity[key].length == curValue.length)
-            {
-                continue;
-            }            
-            unset[key] = '';
+    for (var i in obj) {
+        if (obj[i] == undefined || obj[i] == null || obj[i] == undefined && obj[i] == '' || (obj[i] instanceof Array && obj[i] == []) || obj[i] == {}) {
+            unset[i] = obj[i];
             u = true;
         }
         else {
-            if (type == EntityChange.patch && curValue instanceof Array) {
-                push[key] = {
-                    $each: curValue
+            if (type == EntityChange.patch && obj[i] instanceof Array) {
+                push[i] = {
+                    $each: obj[i]
                 }
                 p = true;
             }
             else {
-                if (type == EntityChange.patch && jsonMapProp && jsonMapProp.indexOf(key) >= 0) {
-                    for (var j in curValue) {
-                        set[key + '.' + j] = curValue[j];
-                        s = true;
-                    }
-                }
-                else if (!(curValue instanceof Function)) {
-                    // do not set for not modified keys
-                    // in case of object, use JSON.stringify to compare serialize object.
-                    if (!Array.isArray(curValue) && curValue instanceof Object && orginalDbEntity) {
-                        let serializeOrgObj = JSON.stringify(orginalDbEntity[key]);
-                        let serializeCurObj = JSON.stringify(curValue);
-                        if (serializeCurObj == serializeOrgObj) {
-                            continue;
-                        }
-                    }
-                    // in case of string, number, boolean etc. direct compare.
-                    if (orginalDbEntity && curValue === orginalDbEntity[key]) { // add json.parse(json.stringify)
-                        continue;
-                    }
-                    set[key] = curValue;
-                    s = true;
-                }
+                set[i] = obj[i];
+                s = true;
             }
         }
     }
@@ -181,26 +143,4 @@ export function getMongoUpdatOperatorForRelation(meta: MetaData) {
 
     return operator;
 
-}
-
-export function isBasonOrStringType(obj: any) {
-    if (!obj) {
-        return undefined;
-    }
-    return obj instanceof Types.ObjectId || typeof obj === "string";
-}
-
-export function getParentKey(modelName, prop, id) {
-    let parent = {};
-    parent[ConstantKeys.collectionName] = modelName;
-    parent[ConstantKeys.property] = prop;
-    parent[ConstantKeys.parentId] = id;
-    return parent;
-}
-export function pushPropToArrayOrObject(prop:any,propVal:any,collecionObj:any,isFlat:boolean){
-    if(isFlat){
-        collecionObj[prop] = propVal;
-    }else{
-        collecionObj.push(propVal);
-    }
 }

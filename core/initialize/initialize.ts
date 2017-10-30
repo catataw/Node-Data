@@ -4,10 +4,9 @@ import {ParamTypeCustom} from '../metadata/param-type-custom';
 import {router} from '../exports';
 import path = require('path');
 import * as Enumerable from 'linq';
-import Q = require('q');
+
 import {MetaUtils} from "../metadata/utils";
 import * as Utils from "../utils";
-import {CrudEntity} from "../dynamic/crud.entity";
 
 export class Initalize {
     constructor(files: Array<String>) {
@@ -15,27 +14,6 @@ export class Initalize {
         new InitializeControllers();
         //this.configureAcl();
         this.configureBase();
-        ['bulkPost', 'bulkPut', 'bulkPatch', 'bulkDel'].forEach(x => {
-            Object.defineProperty(Array.prototype, x, {
-                enumerable: false,
-                writable: false,
-                value: this.getExtendedArrayMethod(x)
-            });
-        });
-    }
-
-    getExtendedArrayMethod(action: string): () => Q.Promise<any> {
-        return (function () {
-            let curArr = this;
-            if (!curArr[0]) {
-                return Q.when([]);
-            }
-            let repo = (<CrudEntity>(curArr[0])).getRepo();
-            if (!repo) {
-                return Q.reject("repository not found");
-            }
-            return repo[action]([].concat(curArr));
-        });
     }
 
     configureBase() {

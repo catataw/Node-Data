@@ -1,20 +1,12 @@
-
-let DbConnectionOptions = { server: { poolSize: 20, domainsEnabled: true } };
-
 export class Config {
-    public static DbConnection: string = "mongodb://localhost:27017/test_nodedata";
-    public static DbConnectionOptions = DbConnectionOptions;
+    public static DbConnection: string = "mongodb://localhost:27017/userDatabase";
     public static basePath: string = "data";
     public static apiversion: string = "v1";
 
     public static ElasticSearchConnection : string  = "http://localhost:9200";
     public static ApplyElasticSearch : boolean = false; 
-    public static ignorePaths = ['server.js'];
-    public static internalIgnorePaths = ['gulpfile.js'];
-    public static isMultiThreaded = true; // This param is for configuring multi process using worker/ process control attribute..
-    public static worker = 'worker.js';
-    public static process = 1;
-    public static isCacheEnabled: boolean = false; // by default caching is false, make it true to enable cahing in your application
+    public static ignorePaths =  [];
+    public static isMultiThreaded = true; // This param is for configuring multi process using worker attribute..
 }
 
 export class SqlConfig {

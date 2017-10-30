@@ -14,7 +14,6 @@ import {IRepositoryParams} from '../decorators/interfaces/repository-params';
 let _metadataRoot: MetaRoot = new Map<Function | Object, DecoratorMetaData>();
 let _nameAndTargetMapping: any = {};
 let _documnetNameAndTargetMapping: any = {};
-let _decoratorsCache: any = {};
 
 let childProcessId:any;
 
@@ -58,7 +57,6 @@ interface IMetadataHelper {
     getMetaDataForDecorators(decorators: Array<string>): Array<{ target: Object, metadata: Array<MetaData> }>;
     getMetaDataForPropKey(target: Object, propertyKey?: string): Array<MetaData>;
     getMetaDataForPropKey(target: Object, propertyKey?: string, paramIndex?: number): Array<MetaData>;
-    getMetaDataFromName(modelName: string): Array<any>;
     refreshDerivedObjectsMetadata();
     getDescriptiveMetadata(type, baseRelMeta, recursionLevel?: number): any;
 }
@@ -131,13 +129,6 @@ class MetadataHelper {
             case 3: return MetadataHelper.getMetaDataForTargetDecoratorAndPropKey(DecoratorType.METHOD, target, decorator, propertyKey, paramIndex);
             case 4: return MetadataHelper.getMetaDataForTargetDecoratorAndPropKey(DecoratorType.PARAM, target, decorator, propertyKey, paramIndex);
         }
-    }
-    
-     public static getMetaDataFromName(modelName: string): Array<any> {
-
-        return Object.keys(_documnetNameAndTargetMapping).
-            filter((key) => _documnetNameAndTargetMapping[key].constructor.name == modelName)
-        
     }
 
     public static getMetaDataFromType(modelType: string): Array<MetaData> {
@@ -243,20 +234,14 @@ class MetadataHelper {
         }
 
         var metaKey = MetadataHelper.getMetaKey(target);
-        let cacheKey = metaKey.constructor.name + "_" + decorator;
-        if (_decoratorsCache[cacheKey]) {
-            return _decoratorsCache[cacheKey];
-        }
 
         if (!_metadataRoot.get(metaKey)) {
             return null;
         }
 
-        let decoratorsData = Enumerable.from(_metadataRoot.get(metaKey)[decorator])
+        return Enumerable.from(_metadataRoot.get(metaKey)[decorator])
             .select(keyVal => keyVal.value)
             .toArray();
-        _decoratorsCache[cacheKey] = decoratorsData;
-        return decoratorsData;      
     }
 
     private static getMetaDataForTargetDecoratorAndPropKey(
@@ -361,7 +346,5 @@ class MetadataHelper {
 
 
 }
-export function resetFieldDecoratorCache() {
-    _decoratorsCache = {};
-}
+
 export var MetaUtils: IMetadataHelper = MetadataHelper;

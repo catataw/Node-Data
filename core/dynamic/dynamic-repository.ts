@@ -12,6 +12,7 @@ import {InstanceService} from '../services/instance-service';
 import {MetaUtils} from "../metadata/utils";
 import {Decorators} from '../constants';
 import {QueryOptions} from '../interfaces/queryOptions';
+import {MetaData} from '../metadata/metadata';
 
 
 var modelNameRepoModelMap: { [key: string]: IDynamicRepository } = {};
@@ -47,6 +48,7 @@ export interface IDynamicRepository {
     post(obj: any): Q.Promise<any>;
     delete(id: any);
     patch(id: any, obj);
+    getSearchIndexes();
 }
 
 export class DynamicRepository implements IDynamicRepository {
@@ -56,6 +58,7 @@ export class DynamicRepository implements IDynamicRepository {
     private entity: any;
     private entityService: IEntityService;
     private rootLevelRep: IDynamicRepository;
+    private searchIndex: Array<string> = [];
     //private modelRepo: any;
 
     public initialize(repositoryPath: string, target: Function | Object, model?: any, rootRepo?: IDynamicRepository) {
@@ -67,6 +70,27 @@ export class DynamicRepository implements IDynamicRepository {
             target.rootLevelRep = rootRepo;
         }
         modelNameRepoModelMap[this.path] = this;
+        if (model) {
+            let decoratorFields = MetaUtils.getMetaData(model.prototype, Decorators.FIELD);
+            let decoratorDocument = MetaUtils.getMetaData(model.prototype, Decorators.DOCUMENT);
+            let selfMetadata = decoratorDocument.length && decoratorDocument[0].params.searchIndex;
+            this.searchIndex =
+                Enumerable.from(decoratorFields)
+                    .where(ele => {
+                        if (selfMetadata)
+                            return true;
+
+                        var meta: MetaData = ele as MetaData;
+                        return meta.propertyKey
+                            && meta
+                            && meta.params
+                            && (<any>meta.params).searchIndex;
+                    }).select(x => x.propertyKey).toArray();
+        }
+    }
+
+    public getSearchIndexes() {
+        return this.searchIndex;
     }
 
     public getEntity() {

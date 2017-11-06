@@ -297,17 +297,7 @@ export class DynamicController {
 
     addSearchPaths() {
         let modelRepo = this.repository.getEntityType();
-        let decoratorFields = MetaUtils.getMetaData(modelRepo.model.prototype, Decorators.FIELD);
-        let fieldsWithSearchIndex =
-            Enumerable.from(decoratorFields)
-                .where(ele => {
-                    var meta: MetaData = ele as MetaData;
-                    return meta.propertyKey
-                        && meta
-                        && meta.params
-                        && (<any>meta.params).searchIndex;
-                }).toArray();
-
+        let fieldsWithSearchIndex = this.repository.getSearchIndexes();
         let searchPropMap = GetAllFindBySearchFromPrototype(modelRepo);
 
         var search = {};
@@ -315,7 +305,12 @@ export class DynamicController {
             this.addRoutesForAllSearch(map, fieldsWithSearchIndex);
             search[map.key] = { "href": map.key, "params": map.args };
         });
-
+        router.post(this.path + "/searchES", this.ensureLoggedIn(this.entity, RepoActions.post), (req, res) => {
+            if (!this.isAuthorize(req, res, RepoActions.findAll)) {
+                this.sendUnauthorizeError(res, 'unauthorize access for resource ' + this.path);
+            }
+            return this.searchUsingElastic(req, res, RepoActions.post, null);
+        });
         router.get(this.path + "/searchAll", this.ensureLoggedIn(this.entity, RepoActions.findAll), (req, res) => {
             if (!this.isAuthorize(req, res, RepoActions.findAll)) {
                 this.sendUnauthorizeError(res, 'unauthorize access for resource ' + this.path);
@@ -472,11 +467,10 @@ export class DynamicController {
             });
         }
         else { // Search from elasticsearch
-            let model: any = this.repository.getModel();
             router.get(this.path + "/search/" + map.key, (req, res) => {
                 return this.isPreAuthenticated(req, res, map.key).then(isAllowed => {
                     if (isAllowed) {
-                        return this.searchUsingElastic(req, res, model, map);
+                        return this.searchUsingElastic(req, res, RepoActions.findAll, map);
                     }
                 });
             });
@@ -552,35 +546,51 @@ export class DynamicController {
             });
     }
 
-    private searchUsingElastic(req, res, model, map) {
-        let queryObj = req.query;
+    private getQueryFromMappings(queryObj, map) {
         let musts = map.args.map(function (arg) {
             let s = '{"' + arg + '":' + "0" + "}";
             let obj = JSON.parse(s);
             obj[arg] = queryObj[arg];
             return { "match": obj };
         });
-        let query = {
-            "query": {
-                "bool": {
-                    "must":
-                    musts
-                }
+        return {
+            "bool": {
+                "must":
+                musts
             }
         };
+    }
+
+    private searchUsingElastic(req, res, type, map) {
+        let modelRepo = this.repository.getModel();
+        let query;
+        if (type == RepoActions.post) {
+            // search using query body
+            query = req.body;
+        }
+        else {
+            query = this.getQueryFromMappings(req.query, map);
+        }
         winstonLog.logInfo('[DynamicController: addRoutesForAllSearch]: query ' + JSON.stringify(query));
         console.log("Querying Elastic search with %s", JSON.stringify(query));
-        return model
-            .search(query, (err, rr) => {
+        return modelRepo
+            .search(query, { hydrate: true }, (err, rr) => {
                 if (err) {
                     console.error(err);
                     this.sendresult(req, res, err);
                 }
                 else {
                     console.log(rr);
-                    this.postFilter(rr, map.key).then(result => {
+
+                    let result = rr.hits && rr.hits.hits ? rr.hits.hits : [];
+                    if (map) {
+                        this.postFilter(result, map.key).then(result => {
+                            this.sendresult(req, res, result);
+                        });
+                    }
+                    else {
                         this.sendresult(req, res, result);
-                    });
+                    }
                 }
             });
     }

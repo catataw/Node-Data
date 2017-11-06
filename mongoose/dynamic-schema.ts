@@ -26,11 +26,17 @@ export class DynamicSchema {
     }
     
     public getSchema() {
-        var fieldMetaArr = MetaUtils.getMetaData(this.target, Decorators.FIELD);
-        var idx = Enumerable.from(fieldMetaArr)
-            .where((keyVal) => keyVal && keyVal.params && (keyVal.params).searchIndex).any();
-            var options = this.getMongooseOptions(this.target);
-            var mongooseOptions: IMongooseSchemaOptions = { options: options, searchIndex: idx };
+        var fieldMetaArr = MetaUtils.getMetaData(this.target, Decorators.DOCUMENT);
+        var idx = false;
+        if (fieldMetaArr.length > 0 && fieldMetaArr[0].params.searchIndex) {
+            idx = true;
+        }
+        else {
+            idx = Enumerable.from(fieldMetaArr)
+                .where((keyVal) => keyVal && keyVal.params && (keyVal.params).searchIndex).any();
+        }
+        var options = this.getMongooseOptions(this.target);
+        var mongooseOptions: IMongooseSchemaOptions = { options: options, searchIndex: idx };
         return schemaGenerator.createSchema(this.parsedSchema, mongooseOptions);
     }
 

@@ -39,6 +39,7 @@ class Dynamic {
         let ignorePaths = config.Config && config.Config.ignorePaths || [];
         var files = this.scanDirectories(ignorePaths);
         this.loadComponents(files);
+        MetaUtils.refreshDerivedObjectsMetadata();
         this.initialize(files);
     }
 
@@ -77,7 +78,6 @@ module.exports = function (config: any, securityConfig: any, appRoot?: string,
     //Utils.entityService(entityServiceInst);
     //Utils.sqlEntityService(sqlServerInst);
     new Dynamic(config, securityConfig);
-    MetaUtils.refreshDerivedObjectsMetadata();
 }
 
 let components: Array<any> = [];

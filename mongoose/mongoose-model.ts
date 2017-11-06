@@ -35,7 +35,9 @@ export function bulkPost(model: Mongoose.Model<any>, objArr: Array<any>): Q.Prom
             // autogenerate ids of all the objects
             Enumerable.from(clonedModels).forEach(clonedObj => {
                 try {
-                    mongooseHelper.autogenerateIdsForAutoFields(model, clonedObj);
+                    if (clonedObj && !clonedObj._id) {
+                        mongooseHelper.autogenerateIdsForAutoFields(model, clonedObj);
+                    }
                     //Object.assign(obj, clonedObj);
                 } catch (ex) {
                     winstonLog.logError(`Error in bulkPost ${ex}`);
@@ -410,7 +412,9 @@ export function post(model: Mongoose.Model<any>, obj: any): Q.Promise<any> {
     return mongooseHelper.addChildModelToParent(model, clonedObj, null)
         .then(result => {
             try {
-                mongooseHelper.autogenerateIdsForAutoFields(model, clonedObj);
+                if (clonedObj && !clonedObj._id) {
+                    mongooseHelper.autogenerateIdsForAutoFields(model, clonedObj);
+                }
                 //Object.assign(obj, clonedObj);
             } catch (ex) {
                 console.log(ex);

@@ -1,7 +1,6 @@
 var mongoosastic = require("mongoosastic");
 var elasticsearch = require("elasticsearch");
-
-import {Config} from "../config"; 
+import * as CoreUtils from '../core/utils';
 
 /**
  * ElastticSearchUtils
@@ -9,22 +8,26 @@ import {Config} from "../config";
 class ElastticSearchUtils {
     private esClient: any;
     constructor() {
-        if (Config.ApplyElasticSearch) {
-            this.esClient = new elasticsearch.Client({ host: Config.ElasticSearchConnection });
+    }
+
+    getESConnection() {
+        if (!this.esClient) {
+            this.esClient = new elasticsearch.Client({ host: CoreUtils.config().Config.ElasticSearchConnection });
         }
+        return this.esClient;
     }
 
     insertMongoosasticToSchema(schema: any) {
-        if (Config.ApplyElasticSearch) {
+        if (CoreUtils.config().Config.ApplyElasticSearch) {
             schema.plugin(mongoosastic, {
-                esClient: this.esClient
+                esClient: this.getESConnection()
             });
         }
     }
 
     registerToMongoosastic(mongooseModel: any) {
         // This will be called only in the case if the mongoosastic plugin was attached to the mongoose model.
-        if (Config.ApplyElasticSearch && mongooseModel.createMapping) {
+        if (CoreUtils.config().Config.ApplyElasticSearch && mongooseModel.createMapping) {
             mongooseModel.createMapping((err: any, mapping: any) => {
                 if (err) {
                     console.error(err);

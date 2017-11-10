@@ -1,10 +1,9 @@
 {
-  "name": "nodedata",
-  "version": "1.0.0-dev.170504143629",
+  "name": "nodedata_sg",
   "description": "Node Data",
   "main": "server.js",
   "scripts": {
-    "cover": "node_modules/.bin/istanbul cover node_modules/jasmine/bin/jasmine.js -x *.spec.js",
+    "cover": "istanbul cover node_modules/jasmine/bin/jasmine.js -x *.spec.js",
     "ci": "gulp ts && gulp ci-dev && npm test && npm publish",
     "pub": "gulp ts && npm publish",
     "start": "node server.js",
@@ -64,5 +63,20 @@
     "jasmine-node": "1.14.5",
     "supertest": "1.2.0",
     "tslint-microsoft-contrib": "2.0.2"
-  }
+  },
+  "version": "1.0.0",
+  "directories": {
+    "test": "tests"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ratneshsinghparihar/Node-Data.git"
+  },
+  "keywords": [
+    "[sg]"
+  ],
+  "bugs": {
+    "url": "https://github.com/ratneshsinghparihar/Node-Data/issues"
+  },
+  "homepage": "https://github.com/ratneshsinghparihar/Node-Data#readme"
 }

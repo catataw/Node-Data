@@ -164,8 +164,8 @@ function executeBulkPut(model: Mongoose.Model<any>, objArr: Array<any>, donotLoa
             }
             var updatedProps;
             updatedProps = Utils.getUpdatedProps(result, EntityChange.put);
-           
-           // console.log("update props", updatedProps);
+
+            // console.log("update props", updatedProps);
             delete result.__dbEntity;
             // update only modified objects
             if (Object.keys(updatedProps).length === 0) {
@@ -179,7 +179,7 @@ function executeBulkPut(model: Mongoose.Model<any>, objArr: Array<any>, donotLoa
             //        continue;
             //    }
             //}
-            
+
             let isDecoratorPresent = isDecoratorApplied(model, Decorators.OPTIMISTICLOCK, "put");
             let query: Object = { _id: objectId };
             if (isDecoratorPresent === true) {
@@ -187,8 +187,8 @@ function executeBulkPut(model: Mongoose.Model<any>, objArr: Array<any>, donotLoa
                 updatedProps["$inc"] = { '__v': 1 };
                 query["__v"] = result["__v"];
             }
-           
-                bulk.find({ _id: objectId }).update(updatedProps);
+
+            bulk.find({ _id: objectId }).update(updatedProps);
         }
         let promBulkUpdate = Q.when({});
         console.log("bulkPut bulk.execute start" + model.modelName);
@@ -217,7 +217,7 @@ function executeBulkPut(model: Mongoose.Model<any>, objArr: Array<any>, donotLoa
                 if (updateParentRequired.length > 0) {
                     let updateObject = [];
                     updateParentRequired.forEach(x => {
-                        updateObject.push(objArr.find(obj => obj._id == x));
+                        updateObject.push(objects.find(obj => obj._id.toString() == x));
                     });
                     updateParentProm = mongooseHelper.updateParent(model, updateObject);
                 }
@@ -238,7 +238,6 @@ function executeBulkPut(model: Mongoose.Model<any>, objArr: Array<any>, donotLoa
         return Q.reject(error);
     });
 }
-
 
 
 /**

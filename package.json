@@ -1,11 +1,9 @@
 {
-  "name": "nodedata_sg",
+  "name": "nodedata",
   "description": "Node Data",
   "main": "server.js",
   "scripts": {
     "cover": "istanbul cover node_modules/jasmine/bin/jasmine.js -x *.spec.js",
-    "ci": "gulp ts && gulp ci-dev && npm test && npm publish",
-    "pub": "gulp ts && npm publish",
     "start": "node server.js",
     "test": "jasmine",
     "testone": "jasmine ",

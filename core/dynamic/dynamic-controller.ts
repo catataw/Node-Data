@@ -569,12 +569,12 @@ export class DynamicController {
             query = req.body;
         }
         else {
-            query = this.getQueryFromMappings(req.query, map);
+            query = { query: this.getQueryFromMappings(req.query, map) };
         }
         winstonLog.logInfo('[DynamicController: addRoutesForAllSearch]: query ' + JSON.stringify(query));
         console.log("Querying Elastic search with %s", JSON.stringify(query));
         return modelRepo
-            .search(query, { hydrate: true }, (err, rr) => {
+            .esSearch(query, { hydrate: true }, (err, rr) => {
                 if (err) {
                     console.error(err);
                     this.sendresult(req, res, err);

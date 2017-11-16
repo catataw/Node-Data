@@ -75,7 +75,7 @@ export class DynamicSchema {
             return fieldMetadata.propertyType.isArray ? [schemaType] : schemaType;
         }
         else {
-            return fieldMetadata.propertyType.isArray ? [schemaType] : { type: schemaType, es_indexed: true };
+            return fieldMetadata.propertyType.isArray ? [schemaType] : { type: schemaType, es_indexed: true, es_index_options: 'offsets' };
         }
         //var schemaType = this.getSchemaTypeForType(paramType);
         //if (paramType.rel) {

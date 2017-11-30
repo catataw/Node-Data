@@ -860,8 +860,14 @@ function embedChild(objects: Array<any>, prop, relMetadata: MetaData, parentMode
                     else {
                         val[i]['_id'] = Utils.castToMongooseType(val[i]['_id'].toString(), Mongoose.Types.ObjectId);
                         if (params.embedded) {
-                            // newVal.push(val[i]);
-                            Utils.pushPropToArrayOrObject(val[i]['_id'].toString(),val[i],newVal,isJsonMap);
+                            if (params.properties && params.properties.length > 0) {
+                                searchResult[val[i]['_id']] = obj;
+                                searchObj.push(val[i]['_id']);
+                            }
+                            else {
+                                // newVal.push(val[i]);
+                                Utils.pushPropToArrayOrObject(val[i]['_id'].toString(), val[i], newVal, isJsonMap);
+                            }
                         }
                         else {
                             // newVal.push(val[i]['_id']);
@@ -892,7 +898,13 @@ function embedChild(objects: Array<any>, prop, relMetadata: MetaData, parentMode
                 else {
                     val['_id'] = Utils.castToMongooseType(val['_id'].toString(), Mongoose.Types.ObjectId);
                     if (params.embedded) {
-                        newVal = val;
+                        if (params.properties && params.properties.length > 0) {
+                            searchResult[val['_id']] = obj;
+                            searchObj.push(val['_id']);
+                        }
+                        else {
+                            newVal = val;
+                        }
                     }
                     else {
                         newVal = val['_id'];
@@ -949,13 +961,13 @@ function embedChild(objects: Array<any>, prop, relMetadata: MetaData, parentMode
     return Q.allSettled(queryCalls).then(res => {
         objects.forEach(obj => {
             if (obj[prop]) {
-                obj[prop] = embedSelectedPropertiesOnly(params, obj[prop],true);
+                obj[prop] = embedSelectedPropertiesOnly(params, obj[prop]);
             }
         });
     });
 }
 
-function embedSelectedPropertiesOnly(params: IAssociationParams, result: any, isEmbeddedObjectInResult?: boolean) {
+function embedSelectedPropertiesOnly(params: IAssociationParams, result: any) {
     if (result && params.properties && params.properties.length > 0 && params.embedded) {
         if (result instanceof Array) {
             var newResult = [];
@@ -963,7 +975,7 @@ function embedSelectedPropertiesOnly(params: IAssociationParams, result: any, is
                 newResult.push(trimProperties(x, params.properties));
             });
             return newResult;
-        } else if (isEmbeddedObjectInResult) {
+        } else if (isJsonMapEnabled(params)) {
             let returnObject = {};
             for (let key in result) {
                 returnObject[key] = trimProperties(result[key], params.properties);

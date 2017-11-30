@@ -182,6 +182,8 @@
     <TypeScriptCompile Include="tests\models\B.ts" />
     <TypeScriptCompile Include="tests\models\baseModel.ts" />
     <TypeScriptCompile Include="tests\models\city.ts" />
+    <TypeScriptCompile Include="tests\models\company.ts" />
+    <TypeScriptCompile Include="tests\models\employee.ts" />
     <TypeScriptCompile Include="tests\models\school.ts" />
     <TypeScriptCompile Include="tests\models\subject.ts" />
     <TypeScriptCompile Include="tests\models\role.ts" />

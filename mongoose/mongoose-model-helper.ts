@@ -860,6 +860,7 @@ function embedChild(objects: Array<any>, prop, relMetadata: MetaData, parentMode
                     else {
                         val[i]['_id'] = Utils.castToMongooseType(val[i]['_id'].toString(), Mongoose.Types.ObjectId);
                         if (params.embedded) {
+                            // for partial embedding, fetch the object from db and set that object
                             if (params.properties && params.properties.length > 0) {
                                 searchResult[val[i]['_id']] = obj;
                                 searchObj.push(val[i]['_id']);
@@ -898,6 +899,7 @@ function embedChild(objects: Array<any>, prop, relMetadata: MetaData, parentMode
                 else {
                     val['_id'] = Utils.castToMongooseType(val['_id'].toString(), Mongoose.Types.ObjectId);
                     if (params.embedded) {
+                        // for partial embedding, fetch the object from db and set that object
                         if (params.properties && params.properties.length > 0) {
                             searchResult[val['_id']] = obj;
                             searchObj.push(val['_id']);
@@ -949,7 +951,7 @@ function embedChild(objects: Array<any>, prop, relMetadata: MetaData, parentMode
             res.forEach(obj => {
                 var val = params.embedded ? obj : obj['_id'];
                 if (relMetadata.propertyType.isArray) {
-                    searchResult[obj['_id']][prop].push(val);
+                    Utils.pushPropToArrayOrObject(val['_id'].toString(), val, searchResult[obj['_id']][prop], isJsonMap);
                 }
                 else {
                     searchResult[obj['_id']][prop] = val;

@@ -512,8 +512,20 @@ function updateParentDocument1(model: Mongoose.Model<any>, meta: MetaData, objec
  */
 function updateParentDocument(model: Mongoose.Model<any>, meta: MetaData, objs: Array<any>) {
     var queryCond = {};
+    let isJsonMap = isJsonMapEnabled(meta.params);
     var ids = Enumerable.from(objs).select(x => x['_id']).toArray();
-    queryCond[meta.propertyKey + '._id'] = { $in: ids };
+    if (isJsonMap) {
+        let orCond = [];
+        ids.forEach(x => {
+            let queryCond = {};
+            queryCond[meta.propertyKey + '.' + x.toString()] = { $exists: true };
+            orCond.push(queryCond);
+        });
+        queryCond = { $or: orCond };
+    }
+    else {
+        queryCond[meta.propertyKey + '._id'] = { $in: ids };
+    }
     console.log("updateParentDocument find start" + model.modelName + " count " + ids.length);
     updateWriteCount();
     return Q.nbind(model.find, model)(queryCond, { '_id': 1 }).then((result: Array<any>) => {
@@ -533,9 +545,15 @@ function updateParentDocument(model: Mongoose.Model<any>, meta: MetaData, objs: 
             var updateSet = {};
             var objectId = Utils.castToMongooseType(objs[i]._id, Mongoose.Types.ObjectId);
             queryFindCond['_id'] = { $in: parentIds };
-            queryFindCond[meta.propertyKey + '._id'] = objectId;
-            let updateMongoOperator = Utils.getMongoUpdatOperatorForRelation(meta);
-            updateSet[meta.propertyKey + updateMongoOperator] = embedSelectedPropertiesOnly(meta.params, [objs[i]])[0];
+            if (isJsonMap) {
+                queryFindCond[meta.propertyKey + '.' + objs[i]._id.toString()] = { $exists: true };
+                updateSet[meta.propertyKey + '.' + objs[i]._id.toString()] = embedSelectedPropertiesOnly(meta.params, [objs[i]])[0];
+            }
+            else {
+                queryFindCond[meta.propertyKey + '._id'] = objectId;
+                let updateMongoOperator = Utils.getMongoUpdatOperatorForRelation(meta);
+                updateSet[meta.propertyKey + updateMongoOperator] = embedSelectedPropertiesOnly(meta.params, [objs[i]])[0];
+            }            
             bulk.find(queryFindCond).update({ $set: updateSet });
         }
         console.log("updateParentDocument bulk execute start" + model.modelName + " count " + ids.length);
@@ -597,8 +615,9 @@ function patchAllEmbedded(model: Mongoose.Model<any>, prop: string, updateObjs: 
     var searchQueryCond = {};
     var pullQuery = {};
     pullQuery[prop] = {};
+    let ids = updateObjs.map(x => x._id);
     var changesObjIds = {
-        $in: updateObjs.map(x => x._id)
+        $in: ids
     };
     var parentIds = [];
     updateObjs.forEach(x => {
@@ -609,6 +628,15 @@ function patchAllEmbedded(model: Mongoose.Model<any>, prop: string, updateObjs: 
     var isParentIdsPresent = parentIds && parentIds.length;
     isEmbedded ? searchQueryCond[prop + '._id'] = changesObjIds : searchQueryCond[prop] = changesObjIds;
     isEmbedded ? pullQuery[prop]['_id'] = changesObjIds : pullQuery[prop] = changesObjIds;
+    if (isJsonMap) {
+        let orCond = [];
+        ids.forEach(x => {
+            let queryCond = {};
+            queryCond[prop + '.' + x.toString()] = { $exists: true };
+            orCond.push(queryCond);
+        });
+        searchQueryCond = { $or: orCond };
+    }
     // If parent ids are available then no need to call parent from db.
     var parentCallPromise = isParentIdsPresent ? Q.resolve(true) : Q.nbind(model.find, model)(searchQueryCond, { '_id': 1 });
     return parentCallPromise.then((parents: any) => {

@@ -17,7 +17,9 @@ import * as Enumerable from 'linq';
 import Q = require('q');
 import { Types } from "mongoose";
 import * as utils from '../../mongoose/utils';
+let allAutherizationRulesMap = {};
 
+convertAuthorizationRuleMapToJson();
 /**
  * Provides you three states (new, old, merged) for an entity as parameters on which
  * one can build logic from original data in db and from new incoming JSON data
@@ -64,15 +66,42 @@ export function entityAction(params: IPreauthorizeParams): any {
                 //if (originalMethod.name === RepoActions.findOne) {
                 //    var ret = service.target[preAuthParam.methodName].apply(service.target, params);
                 //}
+                let checkIfAClrequired = () => {
+                    if (!allAutherizationRulesMap[this.path] && !allAutherizationRulesMap["*"]) {
+                        return true;
+                    }
+                    let user: User = PrincipalContext.User;
+                    if (user && user.getAuthorities()) {
+
+                        let isACL = true;
+                        user.getAuthorities().forEach((curRole: string) => {
+                            let aclRule = allAutherizationRulesMap[this.path] && allAutherizationRulesMap[this.path][curRole];
+                            if (!aclRule) { 
+                                aclRule = allAutherizationRulesMap["*"] && allAutherizationRulesMap["*"][curRole];
+                            }
+                            if (aclRule && aclRule.acl === false) {
+                                isACL = false;
+                            }
+                        })
+                        return isACL;
+                    }
+                    return true
+                }
+
                 let findActions = [RepoActions.findAll, RepoActions.findByField, RepoActions.findChild, RepoActions.findMany,
                     RepoActions.findOne, RepoActions.findWhere];
-                    // Converting Repo method names into uppercase as check with original method name is in uppercase.
-                    // This is require othewise it will go in else condition and some of the entities will visible user without access e.g. questionnaire not assigned ot user.
-                    findActions = findActions.map(methodName => methodName.toUpperCase());
-                    if (findActions.indexOf(originalMethod.name.toUpperCase()) >= 0) {
-                        console.log("CanRead entity Security " + this.path);
-                        return PostFilterService.postFilter(fullyQualifiedEntities, params).then(result => {
-                            console.log("CanRead entity Security End " + this.path);
+                // Converting Repo method names into uppercase as check with original method name is in uppercase.
+                // This is require othewise it will go in else condition and some of the entities will visible user without access e.g. questionnaire not assigned ot user.
+                findActions = findActions.map(methodName => methodName.toUpperCase());
+                if (findActions.indexOf(originalMethod.name.toUpperCase()) >= 0) {
+                    console.log("CanRead entity Security " + this.path);
+
+                    let promiseOfAuthServerice: any = Q.when(true);
+                    if (checkIfAClrequired()) {
+                        promiseOfAuthServerice = PostFilterService.postFilter(fullyQualifiedEntities, params);
+                    }
+                    return promiseOfAuthServerice.then(result => {
+                        console.log("CanRead entity Security End " + this.path);
                         if (!result) {
                             fullyQualifiedEntities = null;
                         }
@@ -92,41 +121,26 @@ export function entityAction(params: IPreauthorizeParams): any {
                     });
                 }
                 else {
-                        console.log("CanSave entity Security" + this.path);
-                        
-                        //read security config
-                        //check for this.path if acl is false then execute 
-                        //return originalMethod.call(this, ...args);
+                    console.log("CanSave entity Security" + this.path);
+
+                    //read security config
+                    //check for this.path if acl is false then execute 
+                    //return originalMethod.call(this, ...args);
 
 
-                        let executeNextMethod = () => {
-                            if (args.length) {
-                                args[args.length] = fullyQualifiedEntities;
-                            }
-                            else {
-                                args[0] = fullyQualifiedEntities;
-                            }
-                            //}
-                            return originalMethod.call(this, ...args);
+                    let executeNextMethod = () => {
+                        if (args.length) {
+                            args[args.length] = fullyQualifiedEntities;
                         }
-
-                        let user: User = PrincipalContext.User;
-                        if (user && user.getAuthorities() && configUtil.SecurityConfig) {
-                            let matchedConfigs = configUtil.SecurityConfig.ResourceAccess.filter((config) => { return config.name == this.path })
-                            if (matchedConfigs && matchedConfigs.length) {
-                                let matchedConfig = matchedConfigs[0].acl;
-                                let matchedRoleConfig;
-                                user.getAuthorities().forEach((curRole: string) => {
-                                    matchedRoleConfig = matchedConfig.filter((config) => { return config.role == curRole && config.acl ===false  })
-                                });
-
-                                if (matchedRoleConfig) {
-                                    //need to by pass acl , role is good enough to do everythingh on is own
-                                    return executeNextMethod();
-                                }
-                            }
-
+                        else {
+                            args[0] = fullyQualifiedEntities;
                         }
+                        //}
+                        return originalMethod.call(this, ...args);
+                    }
+                    if (!checkIfAClrequired()) {
+                        return executeNextMethod();
+                    }
 
                     return PreAuthService.isPreAuthenticated([fullyQualifiedEntities], params, propertyKey).then(isAllowed => {
                         console.log("CanSave entity Security End" + this.path);
@@ -346,5 +360,19 @@ function mergeProperties(dbEntity?: any, entity?: any, mergedEntity?: any): Enti
 
     mergedEntity[ConstantKeys.FullyLoaded] = true;
     return { inputEntity: entity, oldPersistentEntity: dbEntity, newPersistentEntity: mergedEntity };
+}
+
+function convertAuthorizationRuleMapToJson() {
+    let authorizeResourcesRules = Utils.securityConfig().SecurityConfig.ResourceAccess;
+    if (!authorizeResourcesRules) {
+        return;
+    }
+    authorizeResourcesRules.forEach(x => {
+        let aclObj = {};
+        x.acl.forEach(a => {
+            aclObj[a.role] = a;
+        });
+        allAutherizationRulesMap[x.name] = aclObj;
+    });
 }
 

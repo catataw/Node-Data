@@ -11,6 +11,10 @@
     "tsd": ""
   },
   "author": "pratikv",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ratneshsinghparihar/Node-Data"
+  },
   "license": "MIT",
   "dependencies": {
     "acl": "0.4.9",

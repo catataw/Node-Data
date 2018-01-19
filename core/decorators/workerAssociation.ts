@@ -220,6 +220,14 @@ export function executeWorkerHandler(params, target, propertyKey, originalMethod
 
         //PrincipalContext.save('workerParams', workerParams);
         workerParams.principalContext = PrincipalContext.getAllKeyValues();
+        // key methodName is added to handle the case when a worker method having again worker methods inside.
+        // eg. @worker
+        //     methodA(){ return methodB();}
+        //
+        //     @worker()
+        //     methodB(){}
+        // Means methodB() wont execute in another worker but in the same worker as the parent method executing.
+        workerParams.principalContext['methodName'] = workerParams.servicemethodName;
         let reqHeaders = workerParams.principalContext['req'].headers;
         if (workerParams.principalContext['req']) {
             delete workerParams.principalContext['req'];

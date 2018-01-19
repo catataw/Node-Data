@@ -7,7 +7,9 @@ import Q = require('q');
 export var mainConnection: any = {};
 var allConnections: any = {};
 var connectionOptions;
-
+import EventEmitter = require('events');
+var emitter = new EventEmitter.EventEmitter();
+export {emitter};
 export function connect() {
     let dbLoc = CoreUtils.config().Config.DbConnection;
     connectionOptions = CoreUtils.config().Config.DbConnectionOptions || {};
@@ -52,16 +54,19 @@ function connectDataBase(conn, connectionString): Q.IPromise<any> {
 
     conn.on('connected', () => {
         winstonLog.logInfo(`connection established successfully ${connectionString}`);
+        emitter.emit('databaseconnected', conn);
         defer.resolve(true);
     });
 
     conn.on('error', (err) => {
         winstonLog.logInfo(`connection to mongo failed for ${connectionString} with error ${err}`);
+        emitter.emit('error', conn);
         defer.resolve(false);
     });
 
     conn.on('disconnected', () => {
         winstonLog.logInfo(`connection closed successfully ${connectionString}`);
+        emitter.emit('disconnected', conn);
         defer.resolve(false);
     });
     return defer.promise;

@@ -8,7 +8,7 @@ import * as Enumerable from 'linq';
 import {executeWorkerHandler} from './workerAssociation';
 import {Container} from '../../di';
 import Q = require('q');
-
+import { PrincipalContext } from '../../security/auth/principalContext';
 //This function is a private function and not exposed as an attribute
 //process type=1 process_start
 //process type=2 processend
@@ -16,6 +16,10 @@ import Q = require('q');
 function preProcessHandler(params: IProcessControlParams, target, propertyKey, descriptor, originalMethod, type: string) {
     return function () {
         console.log("preProcessHandler", params);
+        console.log('---->>>>', PrincipalContext.get('methodName'), originalMethod.name);
+        if (PrincipalContext.get('methodName') && PrincipalContext.get('methodName') != originalMethod.name) {            
+            return originalMethod.apply(this, arguments);
+        }
         var meta = MetaUtils.getMetaData(target, type, propertyKey);
         var targetObjectId: any;
         if (params.indexofArgumentForTargetObjectId != undefined) {
@@ -61,18 +65,31 @@ function preProcessHandler(params: IProcessControlParams, target, propertyKey, d
                         initialize = processControlService.initialize(serviceName, propertyKey, targetObjectId, params, argsObj);
                     }
                     return initialize.then(res => {
-                        return processControlService.startProcess().then((sucess) => {
+                        return processControlService.startProcess(originalMethod.name).then((sucess) => {
                             console.log('process control In progress');
                             if (sucess) {
                                 //actual method of caller
                                 //console.log('method execution started', originalMethod.name, argsObj);
-                                var result = originalMethod.apply(this, arguments);
+                                //this try catch is written to handle the break in code without having any promise, as
+                                //it was not returning error here, hence cycle of execution stopped
+                                //this is for sync code specially
+                                try {
+                                    var result = originalMethod.apply(this, arguments);
+                                } catch (error) {
+                                    if (error instanceof Error) {
+                                        error = { errorName: error.name, message: error.message };
+                                    }
+                                    else {
+                                        error = error && error.toString && error.toString();
+                                    }
+                                    result = Q.reject(error);
+                                }
                                 if (Utils.isPromise(result)) {
                                     console.log('method executing...');
                                     return result.then((sucess) => {
                                         if (type == Decorators.PROCESS_START_AND_END) {
                                             //return statement
-                                            return processControlService.completeProcess(sucess).then((result) => {
+                                            return processControlService.completeProcess(sucess, originalMethod.name).then((result) => {
                                                 console.log('method execution completed');
                                                 return sucess;
                                             });
@@ -82,8 +99,11 @@ function preProcessHandler(params: IProcessControlParams, target, propertyKey, d
                                     }).catch(error => {
                                         console.log("throw>>>>>>>>>>>>>>>>>>>");
                                         if (type == Decorators.PROCESS_START_AND_END) {
-                                            //return statement
-                                            return processControlService.errorOutProcess(JSON.stringify(error)).then((result) => {
+                                            // unexpected js system error
+                                            if (error instanceof Error) {
+                                                error = { errorName: error.name, message: error.message };
+                                            }
+                                            return processControlService.errorOutProcess(error).then((result) => {
                                                 console.log('method execution error', error);
                                                 throw error;
                                             }).catch((err) => {

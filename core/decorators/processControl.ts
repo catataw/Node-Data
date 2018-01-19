@@ -65,7 +65,7 @@ function preProcessHandler(params: IProcessControlParams, target, propertyKey, d
                         initialize = processControlService.initialize(serviceName, propertyKey, targetObjectId, params, argsObj);
                     }
                     return initialize.then(res => {
-                        return processControlService.startProcess(originalMethod.name).then((sucess) => {
+                        return processControlService.startProcess().then((sucess) => {
                             console.log('process control In progress');
                             if (sucess) {
                                 //actual method of caller
@@ -89,7 +89,7 @@ function preProcessHandler(params: IProcessControlParams, target, propertyKey, d
                                     return result.then((sucess) => {
                                         if (type == Decorators.PROCESS_START_AND_END) {
                                             //return statement
-                                            return processControlService.completeProcess(sucess, originalMethod.name).then((result) => {
+                                            return processControlService.completeProcess(sucess).then((result) => {
                                                 console.log('method execution completed');
                                                 return sucess;
                                             });

@@ -424,6 +424,7 @@ function updateParentWithParentId(model: Mongoose.Model<any>, meta: MetaData, ob
     let parents = {};
     let isJsonMap = isJsonMapEnabled(meta.params);
     let parentObjectId;
+    let parentIdsToSearch = {};
     console.log("updateParentWithParentId start" + model.modelName);
     for (var i = 0; i < objs.length; i++) {
         let parentId = objs[i][ConstantKeys.parent][ConstantKeys.parentId];
@@ -433,13 +434,14 @@ function updateParentWithParentId(model: Mongoose.Model<any>, meta: MetaData, ob
         //    continue;
 
         parents[parentId] = parents[parentId] ? parents[parentId] : (isJsonMap ? {} : []);
+        parentIdsToSearch[parentId] = Utils.getCastObjectId(model, parentId);
         // check meta then update with array or keyvalue
         if (isJsonMap) {
             parents[parentId][meta.propertyKey + '.' + objs[i]._id.toString()] = embedSelectedPropertiesOnly(meta.params, [objs[i]])[0];
         }
         else {
             var queryFindCond = {};
-            queryFindCond['_id'] = Utils.getCastObjectId(model, parentId);
+            queryFindCond['_id'] = parentIdsToSearch[parentId];
             queryFindCond[meta.propertyKey + '._id'] = objs[i]._id;
             let updateMongoOperator = Utils.getMongoUpdatOperatorForRelation(meta);
             let updateSet = {};
@@ -458,7 +460,7 @@ function updateParentWithParentId(model: Mongoose.Model<any>, meta: MetaData, ob
     Object.keys(parents).forEach(x => {
         if (isJsonMap) {
             var queryFindCond = {};
-            queryFindCond['_id'] = Utils.getCastObjectId(model, x);
+            queryFindCond['_id'] = parentIdsToSearch[x];
             bulk.find(setShardCondition(model, queryFindCond)).update({ $set: parents[x] });
         }
         else {
@@ -1146,14 +1148,16 @@ export function getAllTheShards(model: Mongoose.Model<any>) {
 
 // Implementation for horizontal sharding
 export function setShardCondition(model, searchCond) {
-    var meta = MetaUtils.getMetaData(getEntity(model.modelName), Decorators.REPOSITORY);
-    if (meta && meta[0] && meta[0].params.sharded) {
-        let repo: DynamicRepository = repoFromModel[model.modelName];
-        let cond = repo.getShardCondition();
-        if (cond) {
-            Object.keys(cond).forEach(key => {
-                searchCond[key] = cond[key];
-            });
+    let repo: DynamicRepository = repoFromModel[model.modelName];
+    if (repo) {
+        let meta = repo.getMetaData();
+        if (meta.params && meta.params.sharded) {
+            let cond = repo.getShardCondition();
+            if (cond) {
+                Object.keys(cond).forEach(key => {
+                    searchCond[key] = cond[key];
+                });
+            }
         }
     }
     return searchCond;

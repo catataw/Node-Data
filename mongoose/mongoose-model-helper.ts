@@ -154,25 +154,25 @@ export function embeddedChildren1(model: Mongoose.Model<any>, values: Array<any>
                 if (!val[m.propertyKey] || (val[m.propertyKey] instanceof Array && !val[m.propertyKey].length))
                     return;
 
-                let idsStr = ids.map(id => id.toString());
-                if (m.propertyType.isArray) {
-                    // get unique ids from ids array, in case of manyToOne relationship it might happen 2 children have same parent id so this case of duplicate ids
-                    // for example- student has one school, so it the case of manyToOne, in student-school relationship, so considering this case, if we going to find many two students
-                    // simultenously then their parent school id are same and that is the case of duplicate ids.
-                    val[m.propertyKey].forEach(id => {
-                        if (idsStr.indexOf(id.toString()) === -1) {
-                            ids.push(id);
-                        }
-                    });
-                }
-                else {
-                    // get unique ids from ids array, in case of manyToOne relationship it might happen 2 children have same parent id so this case of duplicate ids
-                    // for example- student has one school, so it the case of manyToOne, in student-school relationship, so considering this case, if we going to find many two students
-                    // simultenously then their parent school id are same and that is the case of duplicate ids.
-                    if (idsStr.indexOf(val[m.propertyKey].toString()) === -1) {
-                        ids.push(val[m.propertyKey]);
+                    let idsStr = ids.map(id => id.toString());
+                    if (m.propertyType.isArray) {
+                        // get unique ids from ids array, in case of manyToOne relationship it might happen 2 children have same parent id so this case of duplicate ids
+                        // for example- student has one school, so it the case of manyToOne, in student-school relationship, so considering this case, if we going to find many two students
+                        // simultenously then their parent school id are same and that is the case of duplicate ids.
+                        val[m.propertyKey].forEach(id => {
+                            if (idsStr.indexOf(id.toString()) === -1) {
+                                ids.push(id);
+                            }
+                        });
                     }
-                }
+                    else {
+                        // get unique ids from ids array, in case of manyToOne relationship it might happen 2 children have same parent id so this case of duplicate ids
+                        // for example- student has one school, so it the case of manyToOne, in student-school relationship, so considering this case, if we going to find many two students
+                        // simultenously then their parent school id are same and that is the case of duplicate ids.
+                        if (idsStr.indexOf(val[m.propertyKey].toString()) === -1) {
+                            ids.push(val[m.propertyKey]);
+                        }
+                    }
             });
             if (ids.length == 0)
                 return;
@@ -911,8 +911,15 @@ function embedChild(objects: Array<any>, prop, relMetadata: MetaData, parentMode
                     else {
                         val[i]['_id'] = Utils.getCastObjectId(relModel, val[i]['_id']);
                         if (params.embedded) {
-                            // newVal.push(val[i]);
+                            // for partial embedding, fetch the object from db and set that object
+                            if (params.properties && params.properties.length > 0) {
+                                searchResult[val[i]['_id']] = obj;
+                                searchObj.push(val[i]['_id']);
+                            }
+                            else {
+                                // newVal.push(val[i]);
                             Utils.pushPropToArrayOrObject(val[i]['_id'].toString(), val[i], newVal, isJsonMap);
+                            }
                         }
                         else {
                             // newVal.push(val[i]['_id']);
@@ -943,7 +950,14 @@ function embedChild(objects: Array<any>, prop, relMetadata: MetaData, parentMode
                 else {
                     val['_id'] = Utils.getCastObjectId(relModel, val['_id']);
                     if (params.embedded) {
-                        newVal = val;
+                        // for partial embedding, fetch the object from db and set that object
+                        if (params.properties && params.properties.length > 0) {
+                            searchResult[val['_id']] = obj;
+                            searchObj.push(val['_id']);
+                        }
+                        else {
+                            newVal = val;
+                        }
                     }
                     else {
                         newVal = val['_id'];
@@ -987,7 +1001,7 @@ function embedChild(objects: Array<any>, prop, relMetadata: MetaData, parentMode
             res.forEach(obj => {
                 var val = params.embedded ? obj : obj['_id'];
                 if (relMetadata.propertyType.isArray) {
-                    Utils.pushPropToArrayOrObject(prop, val, searchResult[obj['_id']][prop], isJsonMap);
+                    Utils.pushPropToArrayOrObject(val['_id'].toString(), val, searchResult[obj['_id']][prop], isJsonMap);
                     //searchResult[obj['_id']][prop].push(val);
                 }
                 else {
@@ -1000,13 +1014,13 @@ function embedChild(objects: Array<any>, prop, relMetadata: MetaData, parentMode
     return Q.allSettled(queryCalls).then(res => {
         objects.forEach(obj => {
             if (obj[prop]) {
-                obj[prop] = embedSelectedPropertiesOnly(params, obj[prop], true);
+                obj[prop] = embedSelectedPropertiesOnly(params, obj[prop]);
             }
         });
     });
 }
 
-function embedSelectedPropertiesOnly(params: IAssociationParams, result: any, isEmbeddedObjectInResult?: boolean) {
+function embedSelectedPropertiesOnly(params: IAssociationParams, result: any) {
     if (result && params.properties && params.properties.length > 0 && params.embedded) {
         if (result instanceof Array) {
             var newResult = [];
@@ -1014,7 +1028,7 @@ function embedSelectedPropertiesOnly(params: IAssociationParams, result: any, is
                 newResult.push(trimProperties(x, params.properties));
             });
             return newResult;
-        } else if (isEmbeddedObjectInResult) {
+        } else if (isJsonMapEnabled(params)) {
             let returnObject = {};
             for (let key in result) {
                 returnObject[key] = trimProperties(result[key], params.properties);

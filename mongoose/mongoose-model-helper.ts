@@ -924,8 +924,18 @@ function embedChild(objects: Array<any>, prop, relMetadata: MetaData, parentMode
                             }
                         }
                         else {
-                            // newVal.push(val[i]['_id']);
-                            Utils.pushPropToArrayOrObject(val[i]['_id'].toString(), val[i]['_id'], newVal, isJsonMap);
+                             // newVal.push(val[i]);
+                             let dbEntities = [];
+                             // in case of partial data in embedded object get that object from db entity and if db entity is not present then fetch from db
+                             if (obj.__dbEntity && obj.__dbEntity[prop]) {
+                                 dbEntities = obj.__dbEntity && obj.__dbEntity[prop];
+                                 let curDbEntity = dbEntities.find(x => x._id && x._id.toString() == val[i]._id.toString());
+                                 Utils.pushPropToArrayOrObject(val[i]['_id'].toString(), curDbEntity ? curDbEntity : val[i], newVal, isJsonMap);
+                             }
+                             else {
+                                 searchResult[val[i]['_id']] = obj;
+                                 searchObj.push(val[i]['_id']);
+                             }
                         }
                     }
                 }

@@ -938,10 +938,10 @@ function embedSelectedPropertiesOnly(params: IAssociationParams, result: any, is
             });
             return newResult;
         } else if (isEmbeddedObjectInResult) {
-            let returnObject = {};
-            for (let key in result) {
-                returnObject[key] = trimProperties(result[key], params.properties);
-            }
+            let returnObject = trimProperties(result, params.properties);
+            //for (let key in result) {
+            //    returnObject[key] = trimProperties(result[key], params.properties);
+            //}
             return returnObject;
         } else {
             return trimProperties(result, params.properties);

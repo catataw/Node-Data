@@ -818,6 +818,7 @@ function embedChild(objects: Array<any>, prop, relMetadata: MetaData, parentMode
     let params: IAssociationParams = <any>relMetadata.params;
     let isJsonMap = isJsonMapEnabled(params);
     let relModel = Utils.getCurrentDBModel(params.rel);
+    let manyToone = {};
     objects.forEach((obj, index) => {
         if (!obj[prop])
             return;
@@ -849,10 +850,18 @@ function embedChild(objects: Array<any>, prop, relMetadata: MetaData, parentMode
                         newVal.push(Utils.getCastObjectId(relModel, val[i]));
                     }
                     else {
-                        // find object
-                        searchResult[val[i]] = obj;
-                        searchObj.push(val[i]);
-                        //newVal.push(searchResult[val[i]]);
+                        if (relMetadata.decorator == Decorators.MANYTOONE) {
+                            manyToone[val] = manyToone[val] ? manyToone[val] : [];
+                            if (manyToone[val].length == 0)
+                                searchObj.push(val);
+                            manyToone[val].push(obj);
+                        }
+                        else {
+                            // find object
+                            searchResult[val] = obj;
+                            searchObj.push(val);
+                        }
+                        //newVal = searchResult[val];
                     }
                 }
             }
@@ -914,7 +923,14 @@ function embedChild(objects: Array<any>, prop, relMetadata: MetaData, parentMode
                     searchResult[obj['_id']][prop].push(val);
                 }
                 else {
-                    searchResult[obj['_id']][prop] = val;
+                    if (relMetadata.decorator == Decorators.MANYTOONE) {
+                        manyToone[obj['_id']].forEach(x => {
+                            x[prop] = val;
+                        });
+                    }
+                    else {
+                        searchResult[obj['_id']][prop] = val;
+                    }
                 }
             });
         }));
